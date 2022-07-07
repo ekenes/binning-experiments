@@ -1,0 +1,429 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="initial-scale=1,maximum-scale=1,user-scalable=no"
+    />
+
+    <title>
+      Binning with aggregate fields | Sample | ArcGIS API for JavaScript 4.24
+    </title>
+
+    <style>
+      html,
+      body,
+      #viewDiv {
+        padding: 0;
+        margin: 0;
+        height: 100%;
+        width: 100%;
+      }
+    </style>
+
+    <script
+      type="module"
+      src="https://js.arcgis.com/calcite-components/1.0.0-beta.82/calcite.esm.js"
+    ></script>
+    <script
+      nomodule=""
+      src="https://js.arcgis.com/calcite-components/1.0.0-beta.82/calcite.js"
+    ></script>
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="https://js.arcgis.com/calcite-components/1.0.0-beta.82/calcite.css"
+    />
+
+    <link
+      rel="stylesheet"
+      href="https://js.arcgis.com/4.24/esri/themes/light/main.css"
+    />
+    <script src="https://js.arcgis.com/4.24/"></script>
+
+    <script type="text/javascript">
+      require([
+        "esri/Map",
+        "esri/views/MapView",
+        "esri/layers/FeatureLayer",
+        "esri/layers/support/LabelClass",
+        "esri/layers/support/AggregateField",
+        "esri/widgets/Legend",
+        "esri/widgets/Expand",
+        "esri/widgets/Home",
+        "esri/Color"
+      ], function (
+        Map,
+        MapView,
+        FeatureLayer,
+        LabelClass,
+        AggregateField,
+        Legend,
+        Expand,
+        Home,
+        Color
+      ) {
+        (async () => {
+
+          const colors = ["#d92b30", "#0095ba", "#3cccb4", "#ffdf3c", "#c27c30", "#f260a1"].map(c => new Color(c));
+          const year = 2020;
+
+          const defaultColor = colors[4].clone();
+          defaultColor.a = 0.25;
+
+          const layer = new FeatureLayer({
+            title: "Motor vehicle crashes (2020)",
+            url: "https://services.arcgis.com/V6ZHFr6zdgNZuVG0/ArcGIS/rest/services/NYC_motor_crashes/FeatureServer/0",
+            popupTemplate: {
+              title: "Crash location",
+              content: [
+                {
+                  type: "fields",
+                  fieldInfos: [
+                    {
+                      fieldName: "CRASH_DATE",
+                      label: "Date",
+                      dateFormat: "day-short-month-year-long-time"
+                    },
+                    {
+                      fieldName: "NUMBER_OF_PERSONS_KILLED",
+                      label: "Fatalities"
+                    },
+                    {
+                      fieldName: "NUMBER_OF_PERSONS_INJURED",
+                      label: "Injuries"
+                    }
+                  ]
+                }
+              ]
+            },
+            definitionExpression: `CRASH_DATE > Date '12-31-${
+              year - 1
+            }' AND CRASH_DATE < Date '01-01-${year + 1}'`,
+            renderer: {
+              type: "pie-chart", // autocasts as new PieChartRenderer
+              size: 12,
+              attributes: [
+                {
+                  field: "NUMBER_OF_MOTORIST_INJURED",
+                  color: colors[0],
+                  label: "Injured motorists",
+                },
+                {
+                  field: "NUMBER_OF_CYCLIST_INJURED",
+                  color: colors[1],
+                  label: "Injured cyclists"
+                },
+                {
+                  field: "NUMBER_OF_PEDESTRIANS_INJURED",
+                  color: colors[2],
+                  label: "Injured pedestrians"
+                },
+                {
+                  field: "NUMBER_OF_PERSONS_KILLED",
+                  color: colors[3],
+                  label: "Fatalities"
+                }
+              ],
+              holePercentage: 0,
+              backgroundSymbol: null,
+              defaultColor,
+              defaultLabel: "Not injured or killed",
+              outline: {
+                width: 0,
+                color: "white"
+              },
+              visualVariables: [
+                {
+                  type: "size", // size visual variable based on population represented in each pie
+                  valueExpression: "$feature.NUMBER_OF_PERSONS_INJURED + $feature.NUMBER_OF_PERSONS_KILLED",
+                  valueExpressionTitle: "Number of people injured",
+                  minDataValue: 1,
+                  maxDataValue: 10,
+                  minSize: 6,
+                  maxSize: 24
+                }
+              ]
+            }
+          });
+
+          const map = new Map({
+            basemap: "gray-vector",
+            layers: [layer]
+          });
+
+          const view = new MapView({
+            container: "viewDiv",
+            map,
+            center: [ -73.94226, 40.7163 ],
+            scale: 288895,
+            constraints: {
+              // maxScale: 18000,
+              snapToZoom: false
+            }
+          });
+
+          await view.when();
+
+          const featureReduction = {
+            type: "binning",
+            fixedBinLevel: 6,
+
+            fields: [
+              new AggregateField({
+                name: "SUM_PERSONS_INJURED",
+                outStatistic: {
+                  onStatisticField: "NUMBER_OF_PERSONS_INJURED",
+                  statisticType: "sum"
+                }
+              }),
+              new AggregateField({
+                name: "SUM_PEDESTRIANS_INJURED",
+                outStatistic: {
+                  onStatisticField: "NUMBER_OF_PEDESTRIANS_INJURED",
+                  statisticType: "sum"
+                }
+              }),
+              new AggregateField({
+                name: "SUM_CYCLIST_INJURED",
+                outStatistic: {
+                  onStatisticField: "NUMBER_OF_CYCLIST_INJURED",
+                  statisticType: "sum"
+                }
+              }),
+              new AggregateField({
+                name: "SUM_MOTORIST_INJURED",
+                outStatistic: {
+                  onStatisticField: "NUMBER_OF_MOTORIST_INJURED",
+                  statisticType: "sum"
+                }
+              }),
+              new AggregateField({
+                name: "AVG_MOTORIST_INJURED",
+                outStatistic: {
+                  onStatisticField: "NUMBER_OF_MOTORIST_INJURED",
+                  statisticType: "avg"
+                }
+              }),
+              new AggregateField({
+                name: "SUM_KILLED",
+                outStatistic: {
+                  onStatisticField: "NUMBER_OF_PERSONS_KILLED",
+                  statisticType: "sum"
+                }
+              })
+            ],
+
+            labelsVisible: true,
+            labelingInfo: [
+              createLabelClass("SUM_MOTORIST_INJURED", colors[0]),
+              createLabelClass("SUM_CYCLIST_INJURED", colors[1]),
+              createLabelClass("SUM_PEDESTRIANS_INJURED", colors[2]),
+              createLabelClass("SUM_KILLED", colors[3])
+            ],
+            popupEnabled: true,
+            popupTemplate: {
+              title: "Crash summary",
+              content: [
+                {
+                  type: "text",
+                  text: "{aggregateCount} car crashes occurred in this area."
+                }, {
+                  type: "media",
+                  mediaInfos: [
+                    {
+                      title: "Crash summary",
+                      type: "column-chart",
+                      value: {
+                        fields: [
+                          "SUM_PEDESTRIANS_INJURED",
+                          "SUM_CYCLIST_INJURED",
+                          "SUM_MOTORIST_INJURED",
+                          "SUM_KILLED"
+                        ]
+                      }
+                    }
+                  ]
+                }, {
+                  type: "fields",
+                  fieldInfos: [
+                    {
+                      fieldName: "aggregateCount",
+                      label: "Total crashes",
+                      format: {
+                        places: 0,
+                        digitSeparator: true
+                      }
+                    },
+                    {
+                      fieldName: "SUM_PERSONS_INJURED",
+                      label: "Total injured",
+                      format: {
+                        places: 0,
+                        digitSeparator: true
+                      }
+                    },
+                    {
+                      fieldName: "SUM_PEDESTRIANS_INJURED",
+                      label: "Pedestrians injured"
+                    },
+                    {
+                      fieldName: "SUM_CYCLIST_INJURED",
+                      label: "Cyclists injured"
+                    },
+                    {
+                      fieldName: "SUM_MOTORIST_INJURED",
+                      label: "Motorists injured"
+                    },
+                    {
+                      fieldName: "SUM_KILLED",
+                      label: "Total killed"
+                    }
+                  ]
+                }
+              ]
+            },
+            renderer: {
+              type: "pie-chart",
+              size: 40,
+              attributes: [
+                {
+                  field: "SUM_MOTORIST_INJURED",
+                  color: colors[0],
+                  label: "Injured motorists",
+                },
+                {
+                  field: "SUM_CYCLIST_INJURED",
+                  color: colors[1],
+                  label: "Injured cyclists"
+                },
+                {
+                  field: "SUM_PEDESTRIANS_INJURED",
+                  color: colors[2],
+                  label: "Injured pedestrians"
+                },
+                {
+                  field: "SUM_KILLED",
+                  color: colors[3],
+                  label: "Fatalities"
+                }
+              ],
+              holePercentage: 0,
+              backgroundSymbol: null,
+              defaultColor: null,
+              outline: {
+                width: 0,
+                color: "white"
+              },
+              visualVariables: [
+                {
+                  type: "size", // size visual variable based on population represented in each pie
+                  valueExpression: "$view.scale",
+                  stops: [
+                    { value: 20000, size: 80 },
+                    { value: 50000, size: 40 },
+                    { value: 100000, size: 20 },
+                    { value: 360000, size: 5 }
+                  ]
+                }
+              ]
+            }
+          };
+
+          function createLabelClass(field, color){
+            const where = [
+              "SUM_PEDESTRIANS_INJURED",
+              "SUM_CYCLIST_INJURED",
+              "SUM_MOTORIST_INJURED",
+              "SUM_KILLED"
+            ]
+              .filter(f => f !== field)
+              .map(f => `(${field} >= ${f})`)
+              .join(" AND ") + ` AND (${field} > 0)`;
+              // .join(" AND ") + ` AND ((${field} / (SUM_PERSONS_INJURED + SUM_KILLED)) * 100 > 49)`;
+
+            return new LabelClass({
+              minScale: 36112,
+              maxScale: 0,
+              deconflictionStrategy: "none",
+              symbol: {
+                type: "text", // autocasts as new TextSymbol()
+                color,
+                font: {
+                  family: "Noto Sans",
+                  size: 12,
+                  weight: "bold"
+                },
+                haloColor: "white",
+                haloSize: 0.5
+              },
+              labelExpressionInfo: {
+                expression: `
+                  var total = $feature.SUM_PERSONS_INJURED + $feature.SUM_KILLED;
+                  if (total <= 0){
+                    return "0%";
+                  }
+                  var ratio = $feature.${field} / total;
+                  Text(ratio, '#%');
+                `
+              },
+              where
+            });
+          }
+
+          function createSymbol(color){
+            return {
+              type: "simple-marker",
+              style: "circle",
+              size: 5,
+              color,
+              outline: {
+                style: "solid",
+                color: [15, 15, 15, 0.3],
+                width: 0.5
+              }
+            };
+          }
+
+          layer.featureReduction = featureReduction;
+
+          view.ui.add(
+            new Home({
+              view: view
+            }),
+            "top-left"
+          );
+
+          const legend = new Legend({
+            view: view,
+            container: "legendDiv"
+          });
+
+          const infoDiv = document.getElementById("infoDiv");
+          view.ui.add(
+            new Expand({
+              view: view,
+              content: infoDiv,
+              expandIconClass: "esri-icon-layer-list",
+              expanded: false
+            }),
+            "top-left"
+          );
+
+          view.watch("scale", (scale)=> {
+            featureReduction.renderer.holePercentage = scale <= 36112 * 2 ? 0.66 : 0;
+            layer.featureReduction = featureReduction;
+            layer.featureReduction = view.scale <= 18000 ? null : featureReduction;
+          });
+
+        })()
+      });
+    </script>
+  </head>
+  <body>
+    <div id="viewDiv"></div>
+    <div id="infoDiv" class="esri-widget">
+      <div id="legendDiv"></div>
+    </div>
+  </body>
+</html>

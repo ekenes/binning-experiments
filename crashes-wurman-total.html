@@ -1,0 +1,522 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="initial-scale=1,maximum-scale=1,user-scalable=no"
+    />
+
+    <title>
+      Binning with aggregate fields | Sample | ArcGIS API for JavaScript 4.24
+    </title>
+
+    <style>
+      html,
+      body,
+      #viewDiv {
+        padding: 0;
+        margin: 0;
+        height: 100%;
+        width: 100%;
+      }
+    </style>
+
+    <script
+      type="module"
+      src="https://js.arcgis.com/calcite-components/1.0.0-beta.82/calcite.esm.js"
+    ></script>
+    <script
+      nomodule=""
+      src="https://js.arcgis.com/calcite-components/1.0.0-beta.82/calcite.js"
+    ></script>
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="https://js.arcgis.com/calcite-components/1.0.0-beta.82/calcite.css"
+    />
+
+    <link
+      rel="stylesheet"
+      href="https://js.arcgis.com/4.24/esri/themes/light/main.css"
+    />
+    <script src="https://js.arcgis.com/4.24/"></script>
+
+    <script type="text/javascript">
+      require([
+        "esri/Map",
+        "esri/views/MapView",
+        "esri/layers/FeatureLayer",
+        "esri/layers/support/LabelClass",
+        "esri/layers/support/AggregateField",
+        "esri/widgets/Legend",
+        "esri/widgets/Expand",
+        "esri/widgets/Home",
+        "esri/Color"
+      ], function (
+        Map,
+        MapView,
+        FeatureLayer,
+        LabelClass,
+        AggregateField,
+        Legend,
+        Expand,
+        Home,
+        Color
+      ) {
+        (async () => {
+
+          const colors = ["#feebe2", "#fbb4b9", "#f768a1", "#c51b8a", "#7a0177"].map(c => new Color(c));
+
+          const year = 2020;
+
+          const layer = new FeatureLayer({
+            title: "Motor vehicle crashes (2020)",
+            url: "https://services.arcgis.com/V6ZHFr6zdgNZuVG0/ArcGIS/rest/services/NYC_motor_crashes/FeatureServer/0",
+            popupTemplate: {
+              title: "Crash location",
+              content: [
+                {
+                  type: "fields",
+                  fieldInfos: [
+                    {
+                      fieldName: "CRASH_DATE",
+                      label: "Date",
+                      dateFormat: "day-short-month-year-long-time"
+                    },
+                    {
+                      fieldName: "NUMBER_OF_PERSONS_KILLED",
+                      label: "Fatalities"
+                    },
+                    {
+                      fieldName: "NUMBER_OF_PERSONS_INJURED",
+                      label: "Injuries"
+                    }
+                  ]
+                }
+              ]
+            },
+            definitionExpression: `CRASH_DATE > Date '12-31-${
+              year - 1
+            }' AND CRASH_DATE < Date '01-01-${year + 1}'`,
+            renderer: {
+              type: "simple",
+              label: "Crash location",
+              symbol: {
+                type: "simple-marker",
+                style: "circle",
+                size: 5,
+                color: colors[3],
+                outline: {
+                  style: "solid",
+                  color: [15, 15, 15, 0.3],
+                  width: 0.5
+                }
+              }
+            }
+          });
+
+          const map = new Map({
+            basemap: "gray-vector",
+            layers: [layer]
+          });
+
+          const view = new MapView({
+            container: "viewDiv",
+            map: map,
+            center: [-73.94226, 40.7163],
+            scale: 288895,
+            constraints: {
+              maxScale: 18000,
+              snapToZoom: false
+            }
+          });
+
+          await view.when();
+
+          const featureReduction = {
+            type: "binning",
+            fixedBinLevel: 6,
+
+            fields: [
+              new AggregateField({
+                name: "SUM_PERSONS_INJURED",
+                outStatistic: {
+                  onStatisticField: "NUMBER_OF_PERSONS_INJURED",
+                  statisticType: "sum"
+                }
+              }),
+              new AggregateField({
+                name: "SUM_PEDESTRIANS_INJURED",
+                outStatistic: {
+                  onStatisticField: "NUMBER_OF_PEDESTRIANS_INJURED",
+                  statisticType: "sum"
+                }
+              }),
+              new AggregateField({
+                name: "SUM_CYCLIST_INJURED",
+                outStatistic: {
+                  onStatisticField: "NUMBER_OF_CYCLIST_INJURED",
+                  statisticType: "sum"
+                }
+              }),
+              new AggregateField({
+                name: "SUM_MOTORIST_INJURED",
+                outStatistic: {
+                  onStatisticField: "NUMBER_OF_MOTORIST_INJURED",
+                  statisticType: "sum"
+                }
+              }),
+              new AggregateField({
+                name: "AVG_MOTORIST_INJURED",
+                outStatistic: {
+                  onStatisticField: "NUMBER_OF_MOTORIST_INJURED",
+                  statisticType: "avg"
+                }
+              }),
+              new AggregateField({
+                name: "SUM_KILLED",
+                outStatistic: {
+                  onStatisticField: "NUMBER_OF_PERSONS_KILLED",
+                  statisticType: "sum"
+                }
+              })
+            ],
+
+            labelsVisible: true,
+            labelingInfo: [
+              new LabelClass({
+                minScale: 36112,
+                maxScale: 0,
+                deconflictionStrategy: "none",
+                symbol: {
+                  type: "text", // autocasts as new TextSymbol()
+                  color: "white",
+                  font: {
+                    family: "Noto Sans",
+                    size: 12,
+                    weight: "bold"
+                  },
+                  haloColor: colors[4],
+                  haloSize: 0.5
+                },
+                labelExpressionInfo: {
+                  expression: "Text($feature.AVG_MOTORIST_INJURED, '#%')"
+                }
+              })
+            ],
+            popupEnabled: true,
+            popupTemplate: {
+              title: "Crash summary",
+              content: [
+                {
+                  type: "text",
+                  text: "{aggregateCount} car crashes occurred in this area."
+                },
+                {
+                  type: "fields",
+                  fieldInfos: [
+                    {
+                      fieldName: "aggregateCount",
+                      label: "Total crashes",
+                      format: {
+                        places: 0,
+                        digitSeparator: true
+                      }
+                    },
+                    {
+                      fieldName: "SUM_PERSONS_INJURED",
+                      label: "Total injured",
+                      format: {
+                        places: 0,
+                        digitSeparator: true
+                      }
+                    },
+                    {
+                      fieldName: "SUM_PEDESTRIANS_INJURED",
+                      label: "Pedestrians injured"
+                    },
+                    {
+                      fieldName: "SUM_CYCLIST_INJURED",
+                      label: "Cyclists injured"
+                    },
+                    {
+                      fieldName: "SUM_MOTORIST_INJURED",
+                      label: "Motorists injured"
+                    },
+                    {
+                      fieldName: "SUM_KILLED",
+                      label: "Total killed"
+                    }
+                  ]
+                }
+              ]
+            },
+            renderer: {
+              type: "simple",
+              symbol: {
+                type: "cim",
+                data: {
+                  type: "CIMSymbolReference",
+                  symbol: {
+                    type: "CIMPointSymbol",
+                    symbolLayers: [
+                      {
+                        type: "CIMVectorMarker",
+                        enable: true,
+                        anchorPoint: { x: 0, y: 0 },
+                        anchorPointUnits: "Relative",
+                        primitiveName: "innerSizeOverride",
+                        frame: { xmin: 0.0, ymin: 0.0, xmax: 17.0, ymax: 17.0 },
+                        markerGraphics: [
+                          {
+                            type: "CIMMarkerGraphic",
+                            geometry: {
+                              rings: [
+                                [
+                                  [8.5, 0.2],
+                                  [7.06, 0.33],
+                                  [5.66, 0.7],
+                                  [4.35, 1.31],
+                                  [3.16, 2.14],
+                                  [2.14, 3.16],
+                                  [1.31, 4.35],
+                                  [0.7, 5.66],
+                                  [0.33, 7.06],
+                                  [0.2, 8.5],
+                                  [0.33, 9.94],
+                                  [0.7, 11.34],
+                                  [1.31, 12.65],
+                                  [2.14, 13.84],
+                                  [3.16, 14.86],
+                                  [4.35, 15.69],
+                                  [5.66, 16.3],
+                                  [7.06, 16.67],
+                                  [8.5, 16.8],
+                                  [9.94, 16.67],
+                                  [11.34, 16.3],
+                                  [12.65, 15.69],
+                                  [13.84, 14.86],
+                                  [14.86, 13.84],
+                                  [15.69, 12.65],
+                                  [16.3, 11.34],
+                                  [16.67, 9.94],
+                                  [16.8, 8.5],
+                                  [16.67, 7.06],
+                                  [16.3, 5.66],
+                                  [15.69, 4.35],
+                                  [14.86, 3.16],
+                                  [13.84, 2.14],
+                                  [12.65, 1.31],
+                                  [11.34, 0.7],
+                                  [9.94, 0.33],
+                                  [8.5, 0.2]
+                                ]
+                              ]
+                            },
+                            symbol: {
+                              type: "CIMPolygonSymbol",
+                              symbolLayers: [
+                                {
+                                  type: "CIMSolidFill",
+                                  enable: true,
+                                  color: colors[4].toJSON()
+                                }
+                              ]
+                            }
+                          }
+                        ],
+                        scaleSymbolsProportionally: true,
+                        respectFrame: true
+                      },
+                      {
+                        type: "CIMVectorMarker",
+                        enable: true,
+                        anchorPoint: { x: 0, y: 0 },
+                        anchorPointUnits: "Relative",
+                        primitiveName: "outerSizeOverride",
+                        frame: { xmin: 0.0, ymin: 0.0, xmax: 17.0, ymax: 17.0 },
+                        markerGraphics: [
+                          {
+                            type: "CIMMarkerGraphic",
+                            geometry: {
+                              rings: [
+                                [
+                                  [8.5, 0.2],
+                                  [7.06, 0.33],
+                                  [5.66, 0.7],
+                                  [4.35, 1.31],
+                                  [3.16, 2.14],
+                                  [2.14, 3.16],
+                                  [1.31, 4.35],
+                                  [0.7, 5.66],
+                                  [0.33, 7.06],
+                                  [0.2, 8.5],
+                                  [0.33, 9.94],
+                                  [0.7, 11.34],
+                                  [1.31, 12.65],
+                                  [2.14, 13.84],
+                                  [3.16, 14.86],
+                                  [4.35, 15.69],
+                                  [5.66, 16.3],
+                                  [7.06, 16.67],
+                                  [8.5, 16.8],
+                                  [9.94, 16.67],
+                                  [11.34, 16.3],
+                                  [12.65, 15.69],
+                                  [13.84, 14.86],
+                                  [14.86, 13.84],
+                                  [15.69, 12.65],
+                                  [16.3, 11.34],
+                                  [16.67, 9.94],
+                                  [16.8, 8.5],
+                                  [16.67, 7.06],
+                                  [16.3, 5.66],
+                                  [15.69, 4.35],
+                                  [14.86, 3.16],
+                                  [13.84, 2.14],
+                                  [12.65, 1.31],
+                                  [11.34, 0.7],
+                                  [9.94, 0.33],
+                                  [8.5, 0.2]
+                                ]
+                              ]
+                            },
+                            symbol: {
+                              type: "CIMLineSymbol",
+                              symbolLayers: [
+                                {
+                                  type: "CIMSolidStroke",
+                                  enable: true,
+                                  color: colors[4].toJSON(),
+                                  width: 1
+                                }
+                              ]
+                            }
+                          }
+                        ],
+                        scaleSymbolsProportionally: true,
+                        respectFrame: true
+                      }
+                    ]
+                  },
+                  primitiveOverrides: [
+                    {
+                      type: "CIMPrimitiveOverride",
+                      primitiveName: "outerSizeOverride",
+                      propertyName: "Size",
+                      valueExpressionInfo: {
+                        type: "CIMExpressionInfo",
+                        title: "Size in pixels of outer ring at maxScale",
+                        // the pixel size at the largest scale
+                        // 42 represents the pixel size of the
+                        // circles at the view's largest scale (1:2,311,161)
+                        expression: `
+                          var binWidthMeters = 500;
+                          var viewResolution = ${view.resolution};
+                          var binWidthPixels = binWidthMeters / viewResolution;
+                          return binWidthPixels * (288895 / $view.scale);
+                        `,
+                        returnType: "Default"
+                      }
+                    },
+                    {
+                      type: "CIMPrimitiveOverride",
+                      primitiveName: "innerSizeOverride",
+                      propertyName: "Size",
+                      valueExpressionInfo: {
+                        type: "CIMExpressionInfo",
+                        title: "Size in pixels of inner ring at maxScale",
+                        // outerSize is the pixel size at the largest scale
+                        // The innerSize is determined by multiplying
+                        // the outerSize by the forest ratio
+                        expression: `
+                          var binWidthMeters = 1000 * 0.5;
+                          var viewResolution = ${view.resolution};
+                          var binWidthPixels = binWidthMeters / viewResolution;
+                          var value = $feature.aggregateCount / 300;
+
+                          var innerRatio = IIF(value > 1, 1, value);
+                          var outerSize = binWidthPixels * (288895 / $view.scale);
+                          var innerSize = outerSize * innerRatio;
+                          return IIF( innerSize < 3, 3, innerSize );
+                        `,
+                        returnType: "Default"
+                      }
+                    }
+                  ]
+                }
+              },
+              visualVariables: [
+                {
+                  type: "color",
+                  field: "AVG_MOTORIST_INJURED",  // SUM_PEDESTRIANS_INJURED  SUM_CYCLIST_INJURED  SUM_MOTORIST_INJURED
+                  // normalizationField: "SUM_PERSONS_INJURED",  AVG_MOTORIST_INJURED
+                  legendOptions: {
+                    title: "Number of motorists injured per crash"
+                  },
+                  stops: [
+                    {
+                      value: 0,
+                      color: colors[0],
+                      label: "None"
+                    },
+                    {
+                      value: 0.15,
+                      color: colors[1]
+                    },
+                    {
+                      value: 0.25,
+                      color: colors[2],
+                      label: "1/4"
+                    },
+                    {
+                      value: 0.33,
+                      color: colors[3]
+                    },
+                    {
+                      value: 0.5,
+                      color: colors[4],
+                      label: "> 1/2"
+                    }
+                  ]
+                }
+              ]
+            }
+          };
+
+          layer.featureReduction = featureReduction;
+
+          view.ui.add(
+            new Home({
+              view: view
+            }),
+            "top-left"
+          );
+
+          const legend = new Legend({
+            view: view,
+            container: "legendDiv"
+          });
+
+          const infoDiv = document.getElementById("infoDiv");
+          view.ui.add(
+            new Expand({
+              view: view,
+              content: infoDiv,
+              expandIconClass: "esri-icon-layer-list",
+              expanded: false
+            }),
+            "top-left"
+          );
+
+        })();
+      });
+    </script>
+  </head>
+  <body>
+    <div id="viewDiv"></div>
+    <div id="infoDiv" class="esri-widget">
+      <div id="legendDiv"></div>
+    </div>
+  </body>
+</html>
