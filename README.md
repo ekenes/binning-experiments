@@ -8,16 +8,16 @@ The apps in this repo explore various ways to visualize binned data.
 
 These apps visualize [Argo float](https://argo.ucsd.edu/) locations binned at various levels. Levels 1-3 should only be used for datasets that span the globe. These examples demonstrate how the resolution of the bin size affects the visualization.
 
-- [Argo floats binned to level 1](https://ekenes.github.io/binning-experiments/buoys-level-1.html)
-- [Argo floats binned to level 2](https://ekenes.github.io/binning-experiments/buoys-level-2.html)
-- [Argo floats binned to level 3](https://ekenes.github.io/binning-experiments/buoys-level-3.html)
+- [Argo floats binned to level 1](https://ekenes.github.io/binning-experiments/intro/buoys-level-1.html)
+- [Argo floats binned to level 2](https://ekenes.github.io/binning-experiments/intro/buoys-level-2.html)
+- [Argo floats binned to level 3](https://ekenes.github.io/binning-experiments/intro/buoys-level-3.html)
 
 ## Projections
 
 The following apps allow you to explore and view binned Argo float data in various projections. See [Binning and spatial references for more information](https://www.esri.com/arcgis-blog/products/js-api-arcgis/mapping/binning-now-available-in-the-arcgis-api-for-javascript/#spatial-references).
 
-- [Hurricanes](https://ekenes.github.io/binning-experiments/hurricanes.html)
-- [Explore projections](https://ekenes.github.io/binning-experiments/explore-projections.html)
+- [Hurricanes](https://ekenes.github.io/binning-experiments/intro/hurricanes.html)
+- [Explore projections](https://ekenes.github.io/binning-experiments/intro/explore-projections.html)
 
 ## Wurman dots
 
