@@ -37,9 +37,9 @@
 
     <link
       rel="stylesheet"
-      href="https://js.arcgis.com/4.24/esri/themes/light/main.css"
+      href="https://js.arcgis.com/4.25/esri/themes/light/main.css"
     />
-    <script src="https://js.arcgis.com/4.24/"></script>
+    <script src="https://js.arcgis.com/4.25/"></script>
 
     <script type="text/javascript">
       require([
@@ -170,46 +170,39 @@
 
             fields: [
               new AggregateField({
+                name: "aggregateCount",
+                alias: "Total count",
+                statisticType: "count"
+              }),
+              new AggregateField({
                 name: "SUM_PERSONS_INJURED",
-                outStatistic: {
-                  onStatisticField: "NUMBER_OF_PERSONS_INJURED",
-                  statisticType: "sum"
-                }
+                onStatisticField: "NUMBER_OF_PERSONS_INJURED",
+                statisticType: "sum"
               }),
               new AggregateField({
                 name: "SUM_PEDESTRIANS_INJURED",
-                outStatistic: {
-                  onStatisticField: "NUMBER_OF_PEDESTRIANS_INJURED",
-                  statisticType: "sum"
-                }
+                onStatisticField: "NUMBER_OF_PEDESTRIANS_INJURED",
+                statisticType: "sum"
               }),
               new AggregateField({
                 name: "SUM_CYCLIST_INJURED",
-                outStatistic: {
-                  onStatisticField: "NUMBER_OF_CYCLIST_INJURED",
-                  statisticType: "sum"
-                }
+                onStatisticField: "NUMBER_OF_CYCLIST_INJURED",
+                statisticType: "sum"
               }),
               new AggregateField({
                 name: "SUM_MOTORIST_INJURED",
-                outStatistic: {
-                  onStatisticField: "NUMBER_OF_MOTORIST_INJURED",
-                  statisticType: "sum"
-                }
+                onStatisticField: "NUMBER_OF_MOTORIST_INJURED",
+                statisticType: "sum"
               }),
               new AggregateField({
                 name: "AVG_MOTORIST_INJURED",
-                outStatistic: {
-                  onStatisticField: "NUMBER_OF_MOTORIST_INJURED",
-                  statisticType: "avg"
-                }
+                onStatisticField: "NUMBER_OF_MOTORIST_INJURED",
+                statisticType: "avg"
               }),
               new AggregateField({
                 name: "SUM_KILLED",
-                outStatistic: {
-                  onStatisticField: "NUMBER_OF_PERSONS_KILLED",
-                  statisticType: "sum"
-                }
+                onStatisticField: "NUMBER_OF_PERSONS_KILLED",
+                statisticType: "sum"
               })
             ],
 

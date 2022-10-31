@@ -11,7 +11,7 @@
 
     <link
       rel="stylesheet"
-      href="https://js.arcgis.com/4.24/esri/themes/light/main.css"
+      href="https://js.arcgis.com/4.25/esri/themes/light/main.css"
     />
 
     <style>
@@ -26,7 +26,7 @@
       }
     </style>
 
-    <script src="https://js.arcgis.com/4.24/"></script>
+    <script src="https://js.arcgis.com/4.25/"></script>
 
     <script>
       require([
@@ -52,6 +52,11 @@
         const featureReduction = {
           type: "binning",
           fixedBinLevel,
+          fields: [{
+            name: "aggregateCount",
+            alias: "Total count",
+            statisticType: "count"
+          }],
           labelsVisible: true,
           labelingInfo: [
             {

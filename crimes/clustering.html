@@ -1,0 +1,165 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="initial-scale=1,maximum-scale=1,user-scalable=no"
+    />
+
+    <title>
+      Summarize binned data using Arcade | Sample | ArcGIS API for JavaScript
+      4.24
+    </title>
+
+    <style>
+      html,
+      body,
+      #viewDiv {
+        padding: 0;
+        margin: 0;
+        height: 100%;
+        width: 100%;
+      }
+    </style>
+
+    <link
+      rel="stylesheet"
+      href="https://js.arcgis.com/4.25/esri/themes/dark/main.css"
+    />
+    <script src="https://js.arcgis.com/4.25/"></script>
+
+    <script type="text/javascript">
+      var layer;
+      require([
+        "esri/Map",
+        "esri/views/MapView",
+        "esri/layers/FeatureLayer",
+        "esri/layers/support/LabelClass",
+        "esri/layers/support/AggregateField",
+        "esri/widgets/Legend",
+        "esri/core/reactiveUtils"
+      ], function (
+        Map,
+        MapView,
+        FeatureLayer,
+        LabelClass,
+        AggregateField,
+        Legend,
+        reactiveUtils
+      ) {
+        const colors = ["#48385f", "#995375", "#db4a5b", "#fc9a59", "#fee086"];
+
+        const featureReduction = {
+          type: "cluster",
+          labelsVisible: true,
+          clusterMinSize: 24,
+          clusterMaxSize: 48,
+          labelingInfo: [
+            new LabelClass({
+              deconflictionStrategy: "none",
+              labelPlacement: "center-center",
+              symbol: {
+                type: "text",
+                color: "white",
+                haloColor: colors[0],
+                haloSize: 1.2,
+                font: {
+                  family: "Noto Sans",
+                  size: 10
+                }
+              },
+              labelExpressionInfo: {
+                expression: `
+                  $feature["cluster_count"];
+                  var value = $feature["cluster_count"];
+                  var num = Count(Text(Round(value)));
+                  var label = When(
+                    num < 4, Text(value, "#.#"),
+                    num == 4, Text(value / Pow(10, 3), "#.#k"),
+                    num <= 6, Text(value / Pow(10, 3), "#k"),
+                    num >= 7, Text(value / Pow(10, 6), "#m"),
+                    Text(value, "#,###")
+                  );
+                  return label;
+                `
+              }
+            })
+          ],
+          popupEnabled: true,
+          popupTemplate: {
+            title: "Crime summary",
+            content: [
+              {
+                type: "text",
+                text: "{cluster_count} crimes occurred in this area."
+              }
+            ],
+            fieldInfos: [
+              {
+                fieldName: "cluster_count",
+                format: {
+                  digitSeparator: true,
+                  places: 0
+                }
+              }
+            ]
+          }
+        };
+
+        layer = new FeatureLayer({
+          title: "San Diego crimes",
+          portalItem: {
+            id: "bc1959d9b378482091445ab89865bc42"
+          },
+          featureReduction,
+          renderer: {
+            type: "simple",
+            symbol: {
+              type: "simple-marker",
+              color: colors[2],
+              size: 6,
+              outline: {
+                width: 0.5,
+                color: colors[0]
+              }
+            }
+          }
+        });
+
+        const map = new Map({
+          basemap: {
+            portalItem: {
+              id: "9cc4e190b8764e8880bd77cb16b9a30a"
+            }
+          },
+          layers: [layer]
+        });
+
+        const view = new MapView({
+          container: "viewDiv",
+          map: map,
+          center: {
+            spatialReference: {
+              latestWkid: 3857,
+              wkid: 102100
+            },
+            x: -13040395,
+            y: 3863033
+          },
+          scale: 144447.638572,
+          popup: {
+            dockEnabled: true,
+            dockOptions: {
+              position: "top-right",
+              breakpoint: false
+            }
+          }
+        });
+        view.ui.add(new Legend({ view }), "bottom-left");
+      });
+    </script>
+  </head>
+  <body>
+    <div id="viewDiv" class="esri-widget"></div>
+  </body>
+</html>

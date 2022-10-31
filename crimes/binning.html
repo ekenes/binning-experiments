@@ -1,0 +1,173 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="initial-scale=1,maximum-scale=1,user-scalable=no"
+    />
+
+    <title>
+      Summarize binned data using Arcade | Sample | ArcGIS API for JavaScript
+      4.24
+    </title>
+
+    <style>
+      html,
+      body,
+      #viewDiv {
+        padding: 0;
+        margin: 0;
+        height: 100%;
+        width: 100%;
+      }
+    </style>
+
+    <link
+      rel="stylesheet"
+      href="https://js.arcgis.com/4.25/esri/themes/dark/main.css"
+    />
+    <script src="https://js.arcgis.com/4.25/"></script>
+
+    <script type="text/javascript">
+      require([
+        "esri/Map",
+        "esri/views/MapView",
+        "esri/layers/FeatureLayer",
+        "esri/layers/support/LabelClass",
+        "esri/layers/support/AggregateField",
+        "esri/widgets/Legend",
+        "esri/core/reactiveUtils"
+      ], function (
+        Map,
+        MapView,
+        FeatureLayer,
+        LabelClass,
+        AggregateField,
+        Legend,
+        reactiveUtils
+      ) {
+        const colors = ["#48385f", "#995375", "#db4a5b", "#fc9a59", "#fee086"];
+
+        const featureReduction = {
+          type: "binning",
+          fixedBinLevel: 6,
+          fields: [{
+            name: "aggregateCount",
+            alias: "Total count",
+            statisticType: "count"
+          }],
+          labelsVisible: true,
+          labelingInfo: [
+            new LabelClass({
+              minScale: 72223,
+              maxScale: 0,
+              deconflictionStrategy: "none",
+              symbol: {
+                type: "text", // autocasts as new TextSymbol()
+                color: "white",
+                haloColor: colors[0],
+                haloSize: 1.2,
+                font: {
+                  family: "Noto Sans",
+                  size: 10
+                }
+              },
+              labelExpressionInfo: {
+                expression: "Text($feature.aggregateCount, '#,###')"
+              }
+            })
+          ],
+          popupEnabled: true,
+          popupTemplate: {
+            title: "Crime summary",
+            content: [
+              {
+                type: "text",
+                text: "{aggregateCount} crimes occurred in this area."
+              }
+            ],
+            fieldInfos: [
+              {
+                fieldName: "aggregateCount",
+                format: {
+                  digitSeparator: true,
+                  places: 0
+                }
+              }
+            ]
+          },
+          renderer: {
+            type: "simple",
+            symbol: {
+              type: "simple-fill",
+              color: [0, 255, 71, 1],
+              outline: null,
+              outline: {
+                color: [0, 0, 0, 0.2],
+                width: 0.5
+              }
+            },
+            visualVariables: [
+              {
+                type: "color",
+                field: "aggregateCount",
+                legendOptions: {
+                  title: "Number of crimes"
+                },
+                stops: [
+                  { value: 0, color: colors[0] },
+                  { value: 50, color: colors[1] },
+                  { value: 250, color: colors[2] },
+                  { value: 500, color: colors[3] },
+                  { value: 1000, color: colors[4] }
+                ]
+              }
+            ]
+          }
+        };
+
+        const layer = new FeatureLayer({
+          title: "San Diego crimes",
+          portalItem: {
+            id: "bc1959d9b378482091445ab89865bc42"
+          },
+          featureReduction
+        });
+
+        const map = new Map({
+          basemap: {
+            portalItem: {
+              id: "9cc4e190b8764e8880bd77cb16b9a30a"
+            }
+          },
+          layers: [layer]
+        });
+
+        const view = new MapView({
+          container: "viewDiv",
+          map: map,
+          center: {
+            spatialReference: {
+              latestWkid: 3857,
+              wkid: 102100
+            },
+            x: -13040395,
+            y: 3863033
+          },
+          scale: 144447.638572,
+          popup: {
+            dockEnabled: true,
+            dockOptions: {
+              position: "top-right",
+              breakpoint: false
+            }
+          }
+        });
+        view.ui.add(new Legend({ view }), "bottom-left");
+      });
+    </script>
+  </head>
+  <body>
+    <div id="viewDiv" class="esri-widget"></div>
+  </body>
+</html>
