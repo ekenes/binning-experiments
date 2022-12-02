@@ -19,6 +19,18 @@
         height: 100%;
         width: 100%;
       }
+      .description {
+        background-color: white;
+        padding: 10px;
+      }
+      .title {
+        background-color: inherit;
+        /* text-align: center; */
+        font-size: 32pt;
+        font-weight: 700;
+        padding: 5px 10px 10px 10px;
+        color: #363636
+      }
     </style>
 
     <script type="module" src="https://js.arcgis.com/calcite-components/1.0.0-beta.97/calcite.esm.js"></script>
@@ -484,21 +496,46 @@
             "top-left"
           );
 
-          const legend = new Legend({
-            view: view,
-            container: "legendDiv"
-          });
+          createLegend("crashes-wurman-total-injuries");
 
-          const infoDiv = document.getElementById("infoDiv");
-          view.ui.add(
-            new Expand({
-              view: view,
-              content: infoDiv,
-              expandIconClass: "esri-icon-layer-list",
-              expanded: false
-            }),
-            "top-left"
-          );
+          function createLegend (fileName){
+            // Add custom legend as an image to an Expand instance
+
+            const descriptionContainer = document.createElement("div");
+            descriptionContainer.classList.add("description");
+
+            const descriptionTitle = document.createElement("div");
+            descriptionTitle.innerHTML = `<h3>${layer.title}</h3>`;
+            descriptionTitle.classList.add("esri-widget");
+            // descriptionTitle.classList.add("title");
+            descriptionContainer.appendChild(descriptionTitle);
+
+            const image = document.createElement("img");
+            image.src = `./assets/${fileName}.png`;
+            descriptionContainer.appendChild(image);
+
+            view.ui.add(
+              new Expand({
+                view: view,
+                content: descriptionContainer,
+                expandIconClass: "esri-icon-legend"
+              }),
+              "top-left"
+            );
+
+            // Adjusts the size of the legend image
+            // based on the size of the view
+            view.when().then(adjustLegendByViewSize);
+            view.watch("widthBreakpoint", adjustLegendByViewSize);
+
+            function adjustLegendByViewSize() {
+              if (view.widthBreakpoint === "xsmall") {
+                image.style.width = "100%";
+              } else {
+                image.style.width = null;
+              }
+            }
+          }
 
         })();
       });
