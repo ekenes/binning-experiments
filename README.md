@@ -21,10 +21,11 @@ The following apps allow you to explore and view binned Argo float data in vario
 
 ## Wurman dots
 
-These apps experiment with visualization binned data using the [Wurman dot visualization technique](https://www.esri.com/arcgis-blog/products/js-api-arcgis/mapping/wurman-dots-bringing-back-the-60s/).
+These apps experiment with visualization binned data using the [Wurman dot visualization technique](https://www.esri.com/arcgis-blog/products/js-api-arcgis/mapping/wurman-dots-bringing-back-the-60s/) introduced by Saul Wurman.
 
-- [Ratio of injuries to car crashes (2020)](https://ekenes.github.io/binning-experiments/wurman/crashes-wurman.html) - This app represents the ratio of motorists who sustained injuries to the total number of car crashes in the gridded circle style developed by Saul Wurman.
-- [Car crashes (size) + ratio of injuries to car crashes (color)](https://ekenes.github.io/binning-experiments/wurman/crashes-wurman-total.html) - This app aggregates car crashes to geographic bins and visualizes the count using Wurman's gridded circles. Continuous color is used to visualize the ratio of injuries to car crashes.
+- [Total car crashes (2020)](https://ekenes.github.io/binning-experiments/wurman/crashes-wurman-total.html) - This app aggregates car crashes to geographic bins and visualizes the count using Wurman's gridded circles.
+- [Ratio of injuries to car crashes (2020)](https://ekenes.github.io/binning-experiments/wurman/crashes-wurman-injuries.html) - This app represents the ratio of motorists who sustained injuries to the total number of car crashes in the gridded circle style.
+- [Car crashes (size) + ratio of injuries to car crashes (color)](https://ekenes.github.io/binning-experiments/wurman/crashes-wurman-total-injuries.html) - This app aggregates car crashes to geographic bins and visualizes the count using Wurman's gridded circles. Continuous color is used to visualize the ratio of injuries to car crashes.
 
 ## Charts
 

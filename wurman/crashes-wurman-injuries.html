@@ -21,19 +21,8 @@
       }
     </style>
 
-    <script
-      type="module"
-      src="https://js.arcgis.com/calcite-components/1.0.0-beta.82/calcite.esm.js"
-    ></script>
-    <script
-      nomodule=""
-      src="https://js.arcgis.com/calcite-components/1.0.0-beta.82/calcite.js"
-    ></script>
-    <link
-      rel="stylesheet"
-      type="text/css"
-      href="https://js.arcgis.com/calcite-components/1.0.0-beta.82/calcite.css"
-    />
+    <script type="module" src="https://js.arcgis.com/calcite-components/1.0.0-beta.97/calcite.esm.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://js.arcgis.com/calcite-components/1.0.0-beta.97/calcite.css"/>
 
     <link
       rel="stylesheet"
@@ -426,7 +415,7 @@
                           var innerRatio = IIF($feature.AVG_MOTORIST_INJURED > 1, 1, $feature.AVG_MOTORIST_INJURED);
                           var outerSize = binWidthPixels * (288895 / $view.scale);
                           var innerSize = outerSize * innerRatio;
-                          return IIF( innerSize < 3, 3, innerSize );
+                          return innerSize;
                         `,
                         returnType: "Default"
                       }

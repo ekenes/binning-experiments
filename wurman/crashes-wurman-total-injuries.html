@@ -55,6 +55,7 @@
         (async () => {
 
           const colors = ["#feebe2", "#fbb4b9", "#f768a1", "#c51b8a", "#7a0177"].map(c => new Color(c));
+          // const colors = ["#0060a6", "#2782c4", "#a889b8", "#ffa18e", "#ffcabf"].reverse().map(c => new Color(c));
           const outlineColor = colors[4].clone();
           outlineColor.a = 0.3;
 
@@ -319,6 +320,7 @@
                         anchorPointUnits: "Relative",
                         primitiveName: "outerSizeOverride",
                         frame: { xmin: 0.0, ymin: 0.0, xmax: 17.0, ymax: 17.0 },
+                        colorLocked: true,
                         markerGraphics: [
                           {
                             type: "CIMMarkerGraphic",
@@ -373,7 +375,12 @@
                                   enable: true,
                                   color: outlineColor.toJSON(),
                                   width: 1
-                                }
+                                },
+                                // {
+                                //   type: "CIMSolidFill",
+                                //   enable: true,
+                                //   color: [231,230,230,255]
+                                // }
                               ]
                             }
                           }
@@ -429,7 +436,42 @@
                     }
                   ]
                 }
-              }
+              },
+              visualVariables: [
+                {
+                  type: "color",
+                  field: "AVG_MOTORIST_INJURED",  // SUM_PEDESTRIANS_INJURED  SUM_CYCLIST_INJURED  SUM_MOTORIST_INJURED
+                  // normalizationField: "SUM_PERSONS_INJURED",  AVG_MOTORIST_INJURED
+                  legendOptions: {
+                    title: "Number of motorists injured per crash"
+                  },
+                  stops: [
+                    {
+                      value: 0,
+                      color: colors[0],
+                      label: "None"
+                    },
+                    {
+                      value: 0.15,
+                      color: colors[1]
+                    },
+                    {
+                      value: 0.25,
+                      color: colors[2],
+                      label: "1/4"
+                    },
+                    {
+                      value: 0.33,
+                      color: colors[3]
+                    },
+                    {
+                      value: 0.5,
+                      color: colors[4],
+                      label: "> 1/2"
+                    }
+                  ]
+                }
+              ]
             }
           };
 
