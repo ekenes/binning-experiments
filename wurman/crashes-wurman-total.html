@@ -70,6 +70,8 @@
           outlineColor.a = 0.3;
 
           const year = 2020;
+          const initialViewScale = 288895;
+          const binSize = 500;
 
           const layer = new FeatureLayer({
             title: "Motor vehicle crashes (2020)",
@@ -126,7 +128,7 @@
             container: "viewDiv",
             map: map,
             center: [-73.94226, 40.7163],
-            scale: 288895,
+            scale: initialViewScale,
             constraints: {
               maxScale: 18000,
               snapToZoom: false
@@ -406,10 +408,10 @@
                         // 42 represents the pixel size of the
                         // circles at the view's largest scale (1:2,311,161)
                         expression: `
-                          var binWidthMeters = 500;
+                          var binWidthMeters = ${binSize};
                           var viewResolution = ${view.resolution};
                           var binWidthPixels = binWidthMeters / viewResolution;
-                          return binWidthPixels * (288895 / $view.scale);
+                          return binWidthPixels * (${initialViewScale} / $view.scale);
                         `,
                         returnType: "Default"
                       }
@@ -425,13 +427,13 @@
                         // The innerSize is determined by multiplying
                         // the outerSize by the forest ratio
                         expression: `
-                          var binWidthMeters = 1000 * 0.5;
+                          var binWidthMeters = ${binSize};
                           var viewResolution = ${view.resolution};
                           var binWidthPixels = binWidthMeters / viewResolution;
                           var value = $feature.aggregateCount / 300;
 
                           var innerRatio = IIF(value > 1, 1, value);
-                          var outerSize = binWidthPixels * (288895 / $view.scale);
+                          var outerSize = binWidthPixels * (${initialViewScale} / $view.scale);
                           var innerSize = outerSize * innerRatio;
                           return IIF( innerSize < 3, 3, innerSize );
                         `,
