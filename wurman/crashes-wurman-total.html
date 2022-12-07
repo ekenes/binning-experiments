@@ -70,8 +70,8 @@
           outlineColor.a = 0.3;
 
           const year = 2020;
-          const initialViewScale = 288895;
-          const binSize = 500;
+          const initialViewScale = 144447.638572;
+          const binSize = 800;
 
           const layer = new FeatureLayer({
             title: "Motor vehicle crashes (2020)",
@@ -131,7 +131,7 @@
             scale: initialViewScale,
             constraints: {
               maxScale: 18000,
-              snapToZoom: false
+              snapToZoom: true
             }
           });
 
@@ -197,7 +197,7 @@
                   haloSize: 0.5
                 },
                 labelExpressionInfo: {
-                  expression: "Text($feature.AVG_MOTORIST_INJURED, '#%')"
+                  expression: "Text($feature.aggregateCount, '#,###')"
                 }
               })
             ],
@@ -262,7 +262,7 @@
                         enable: true,
                         anchorPoint: { x: 0, y: 0 },
                         anchorPointUnits: "Relative",
-                        primitiveName: "innerSizeOverride",
+                        primitiveName: "innerDot",
                         frame: { xmin: 0.0, ymin: 0.0, xmax: 17.0, ymax: 17.0 },
                         markerGraphics: [
                           {
@@ -330,7 +330,7 @@
                         enable: true,
                         anchorPoint: { x: 0, y: 0 },
                         anchorPointUnits: "Relative",
-                        primitiveName: "outerSizeOverride",
+                        primitiveName: "outerRing",
                         frame: { xmin: 0.0, ymin: 0.0, xmax: 17.0, ymax: 17.0 },
                         markerGraphics: [
                           {
@@ -399,7 +399,7 @@
                   primitiveOverrides: [
                     {
                       type: "CIMPrimitiveOverride",
-                      primitiveName: "outerSizeOverride",
+                      primitiveName: "outerRing",
                       propertyName: "Size",
                       valueExpressionInfo: {
                         type: "CIMExpressionInfo",
@@ -411,14 +411,14 @@
                           var binWidthMeters = ${binSize};
                           var viewResolution = ${view.resolution};
                           var binWidthPixels = binWidthMeters / viewResolution;
-                          return binWidthPixels * (${initialViewScale} / $view.scale);
+                          return (binWidthPixels * (${initialViewScale} / $view.scale)) * 0.75;
                         `,
                         returnType: "Default"
                       }
                     },
                     {
                       type: "CIMPrimitiveOverride",
-                      primitiveName: "innerSizeOverride",
+                      primitiveName: "innerDot",
                       propertyName: "Size",
                       valueExpressionInfo: {
                         type: "CIMExpressionInfo",
@@ -435,7 +435,7 @@
                           var innerRatio = IIF(value > 1, 1, value);
                           var outerSize = binWidthPixels * (${initialViewScale} / $view.scale);
                           var innerSize = outerSize * innerRatio;
-                          return IIF( innerSize < 3, 3, innerSize );
+                          return IIF( innerSize < 3, 3, innerSize ) * 0.75;
                         `,
                         returnType: "Default"
                       }
@@ -454,6 +454,10 @@
             }),
             "top-left"
           );
+
+          view.watch("scale", (scale) => {
+            console.log(scale);
+          });
 
           createLegend("crashes-wurman-total");
 

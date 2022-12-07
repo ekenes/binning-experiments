@@ -65,7 +65,9 @@
       ) {
         (async () => {
 
-          const colors = ["#0060a6", "#2782c4", "#a889b8", "#ffa18e", "#ffcabf"].map(c => new Color(c)).reverse();
+          const colors = ["#feebe2", "#fbb4b9", "#f768a1", "#c51b8a", "#7a0177"].map(c => new Color(c));
+          const outlineColor = colors[4].clone();
+          outlineColor.a = 0.3;
 
           const year = 2020;
           const initialViewScale = 144447.638572;
@@ -177,25 +179,25 @@
               })
             ],
 
-            labelsVisible: true,
+            labelsVisible: false,
             labelingInfo: [
               new LabelClass({
                 minScale: 36112,
                 maxScale: 0,
                 deconflictionStrategy: "none",
                 symbol: {
-                  type: "text", // autocasts as new TextSymbol()
+                  type: "text",
                   color: "white",
                   font: {
                     family: "Noto Sans",
                     size: 12,
                     weight: "bold"
                   },
-                  haloColor: colors[4],
+                  haloColor: outlineColor,
                   haloSize: 0.5
                 },
                 labelExpressionInfo: {
-                  expression: "Text($feature.AVG_MOTORIST_INJURED, '#%')"
+                  expression: "Text($feature.aggregateCount, '#,###')"
                 }
               })
             ],
@@ -262,6 +264,7 @@
                         anchorPointUnits: "Relative",
                         primitiveName: "innerDot",
                         frame: { xmin: 0.0, ymin: 0.0, xmax: 17.0, ymax: 17.0 },
+                        size: 4,
                         markerGraphics: [
                           {
                             type: "CIMMarkerGraphic",
@@ -330,6 +333,7 @@
                         anchorPointUnits: "Relative",
                         primitiveName: "outerRing",
                         frame: { xmin: 0.0, ymin: 0.0, xmax: 17.0, ymax: 17.0 },
+                        size: 16,
                         markerGraphics: [
                           {
                             type: "CIMMarkerGraphic",
@@ -393,51 +397,7 @@
                         respectFrame: true
                       }
                     ]
-                  },
-                  primitiveOverrides: [
-                    {
-                      type: "CIMPrimitiveOverride",
-                      primitiveName: "outerRing",
-                      propertyName: "Size",
-                      valueExpressionInfo: {
-                        type: "CIMExpressionInfo",
-                        title: "Size in pixels of outer ring at maxScale",
-                        // the pixel size at the largest scale
-                        // 42 represents the pixel size of the
-                        // circles at the view's largest scale (1:2,311,161)
-                        expression: `
-                          var binWidthMeters = ${binSize};
-                          var viewResolution = ${view.resolution};
-                          var binWidthPixels = binWidthMeters / viewResolution;
-                          return (binWidthPixels * (${initialViewScale} / $view.scale)) * 0.75;
-                        `,
-                        returnType: "Default"
-                      }
-                    },
-                    {
-                      type: "CIMPrimitiveOverride",
-                      primitiveName: "innerDot",
-                      propertyName: "Size",
-                      valueExpressionInfo: {
-                        type: "CIMExpressionInfo",
-                        title: "Size in pixels of inner ring at maxScale",
-                        // outerSize is the pixel size at the largest scale
-                        // The innerSize is determined by multiplying
-                        // the outerSize by the forest ratio
-                        expression: `
-                          var binWidthMeters = ${binSize};
-                          var viewResolution = ${view.resolution};
-                          var binWidthPixels = binWidthMeters / viewResolution;
-
-                          var innerRatio = IIF($feature.AVG_MOTORIST_INJURED > 1, 1, $feature.AVG_MOTORIST_INJURED);
-                          var outerSize = binWidthPixels * (${initialViewScale} / $view.scale);
-                          var innerSize = outerSize * innerRatio;
-                          return innerSize * 0.75;
-                        `,
-                        returnType: "Default"
-                      }
-                    }
-                  ]
+                  }
                 }
               }
             }
@@ -452,7 +412,7 @@
             "top-left"
           );
 
-          createLegend("crashes-wurman-injuries");
+          createLegend("crashes-wurman-total");
 
           function createLegend (fileName){
             // Add custom legend as an image to an Expand instance
@@ -493,7 +453,7 @@
             }
           }
 
-        })()
+        })();
       });
     </script>
   </head>
