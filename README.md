@@ -26,6 +26,9 @@ These apps experiment with visualization binned data using the [Wurman dot visua
 - [Total car crashes (2020)](https://ekenes.github.io/binning-experiments/wurman/crashes-wurman-total.html) - This app aggregates car crashes to geographic bins and visualizes the count using Wurman's gridded circles.
 - [Ratio of injuries to car crashes (2020)](https://ekenes.github.io/binning-experiments/wurman/crashes-wurman-injuries.html) - This app represents the ratio of motorists who sustained injuries to the total number of car crashes in the gridded circle style.
 - [Car crashes (size) + ratio of injuries to car crashes (color)](https://ekenes.github.io/binning-experiments/wurman/crashes-wurman-total-injuries.html) - This app aggregates car crashes to geographic bins and visualizes the count using Wurman's gridded circles. Continuous color is used to visualize the ratio of injuries to car crashes.
+- [Total population (Wurman density)](https://ekenes.github.io/binning-experiments/wurman/population-wurman-density.html) - Population on the Census block level, binned and visualized with Wurman dots.
+- [Total population (Proportional symbols)](https://ekenes.github.io/binning-experiments/wurman/population-proportional-symbols.html) - Population on the Census block level, **not** binned and visualized with proportional symbols.
+- [Total population (Wurman dots + proportional symbols)](https://ekenes.github.io/binning-experiments/wurman/population-wurman-density-scale-threshold.html) - Population on the Census block level visualized with bins and Wurman dots at small scales, but proportional symbols without binning at large scales.
 
 ## Charts
 
