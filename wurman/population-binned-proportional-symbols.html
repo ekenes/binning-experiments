@@ -1,0 +1,229 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="initial-scale=1,maximum-scale=1,user-scalable=no"
+    />
+
+    <title>
+      Binning with aggregate fields | Sample | ArcGIS API for JavaScript 4.24
+    </title>
+
+    <style>
+      html,
+      body,
+      #viewDiv {
+        padding: 0;
+        margin: 0;
+        height: 100%;
+        width: 100%;
+      }
+      .description {
+        background-color: white;
+        padding: 10px;
+      }
+      .title {
+        background-color: inherit;
+        text-align: center;
+        font-size: 16pt;
+        padding: 5px 10px 10px 10px;
+        color: #363636
+      }
+    </style>
+
+    <script type="module" src="https://js.arcgis.com/calcite-components/1.0.0-beta.97/calcite.esm.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://js.arcgis.com/calcite-components/1.0.0-beta.97/calcite.css"/>
+
+    <link
+      rel="stylesheet"
+      href="https://js.arcgis.com/4.25/esri/themes/light/main.css"
+    />
+    <script src="https://js.arcgis.com/4.25/"></script>
+
+    <script type="text/javascript">
+      require([
+        "esri/Map",
+        "esri/views/MapView",
+        "esri/layers/FeatureLayer",
+        "esri/layers/support/LabelClass",
+        "esri/layers/support/AggregateField",
+        "esri/widgets/Legend",
+        "esri/widgets/Expand",
+        "esri/widgets/Home",
+        "esri/Color"
+      ], function (
+        Map,
+        MapView,
+        FeatureLayer,
+        LabelClass,
+        AggregateField,
+        Legend,
+        Expand,
+        Home,
+        Color
+      ) {
+        (async () => {
+
+          const colors = ["#feebe2", "#fbb4b9", "#f768a1", "#c51b8a", "#7a0177"].map(c => new Color(c));
+          const outlineColor = colors[4].clone();
+          outlineColor.a = 0.3;
+
+          const year = 2020;
+          const initialViewScale = 144447.638572;
+          const binSize = 750;
+
+          const layer = new FeatureLayer({
+            title: "Binned population with proportional symbols",
+            url: "https://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services/USA_Census_Block_Points/FeatureServer/0",
+            renderer: {
+              type: "simple",
+              symbol: {
+                type: "simple-marker",
+                color: outlineColor,// colors[4],
+                outline: {
+                  color: [255,255,255,0.4],
+                  width: 0.7
+                }
+              },
+              visualVariables: [{
+                type: "size",
+                field: "POPULATION_2020",
+                minSize: 2,
+                maxSize: 60,
+                minDataValue: 100,
+                maxDataValue: 5000
+              }]
+            }
+          });
+
+          const map = new Map({
+            basemap: "gray-vector",
+            layers: [layer]
+          });
+
+          const view = new MapView({
+            container: "viewDiv",
+            map: map,
+            center: [-96.80961623904446, 32.774082804554006],
+            scale: initialViewScale,
+            constraints: {
+              maxScale: 18000,
+              snapToZoom: true
+            }
+          });
+
+          await view.when();
+
+          const featureReduction = {
+            type: "binning",
+            fixedBinLevel: 6,
+
+            fields: [
+              new AggregateField({
+                name: "aggregateCount",
+                alias: "Number of block points",
+                statisticType: "count"
+              }),
+              new AggregateField({
+                name: "population",
+                alias: "Total population",
+                onStatisticField: "POPULATION_2020",
+                statisticType: "sum"
+              })
+            ],
+
+            labelsVisible: true,
+            labelingInfo: [
+              new LabelClass({
+                minScale: 36112,
+                maxScale: 0,
+                deconflictionStrategy: "none",
+                symbol: {
+                  type: "text",
+                  color: "white",
+                  font: {
+                    family: "Noto Sans",
+                    size: 12,
+                    weight: "bold"
+                  },
+                  haloColor: outlineColor,
+                  haloSize: 0.5
+                },
+                labelExpressionInfo: {
+                  expression: "Text($feature.Population, '#,###')"
+                }
+              })
+            ],
+            popupEnabled: true,
+            popupTemplate: {
+              title: "Statistic summary",
+              content: [
+                {
+                  type: "text",
+                  text: "{Population} people live in this area."
+                },
+                {
+                  type: "fields",
+                  fieldInfos: [
+                    {
+                      fieldName: "Population",
+                      label: "Total population",
+                      format: {
+                        places: 0,
+                        digitSeparator: true
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            renderer: {
+              type: "simple",
+              symbol: {
+                type: "simple-marker",
+                color: outlineColor,// colors[4],
+                outline: {
+                  color: [255,255,255,0.4],
+                  width: 0.7
+                }
+              },
+              visualVariables: [{
+                type: "size",
+                field: "Population",
+                minSize: 2,
+                maxSize: 60,
+                minDataValue: 100,
+                maxDataValue: 5000
+              }]
+            }
+          };
+
+          layer.featureReduction = featureReduction;
+
+          view.ui.add(
+            new Home({
+              view: view
+            }),
+            "top-left"
+          );
+
+          view.ui.add(
+            new Expand({
+              view,
+              content: new Legend({ view })
+            }),
+            "top-left"
+          );
+
+        })();
+      });
+    </script>
+  </head>
+  <body>
+    <div id="viewDiv"></div>
+    <div id="infoDiv" class="esri-widget">
+      <div id="legendDiv"></div>
+    </div>
+  </body>
+</html>

@@ -70,52 +70,30 @@
           outlineColor.a = 0.3;
 
           const year = 2020;
-          const initialViewScale = 144447.638572;
-          const binSize = 800;
+          const initialViewScale = 144447.638572*8;
+          const binSize = 750*7;
 
           const layer = new FeatureLayer({
-            title: "Motor vehicle crashes (2020)",
-            url: "https://services.arcgis.com/V6ZHFr6zdgNZuVG0/ArcGIS/rest/services/NYC_motor_crashes/FeatureServer/0",
-            popupTemplate: {
-              title: "Crash location",
-              content: [
-                {
-                  type: "fields",
-                  fieldInfos: [
-                    {
-                      fieldName: "CRASH_DATE",
-                      label: "Date",
-                      dateFormat: "day-short-month-year-long-time"
-                    },
-                    {
-                      fieldName: "NUMBER_OF_PERSONS_KILLED",
-                      label: "Fatalities"
-                    },
-                    {
-                      fieldName: "NUMBER_OF_PERSONS_INJURED",
-                      label: "Injuries"
-                    }
-                  ]
-                }
-              ]
-            },
-            definitionExpression: `CRASH_DATE > Date '12-31-${
-              year - 1
-            }' AND CRASH_DATE < Date '01-01-${year + 1}'`,
+            title: "Population (2020)",
+            url: "https://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services/USA_Census_Block_Points/FeatureServer/0",
             renderer: {
               type: "simple",
-              label: "Crash location",
               symbol: {
                 type: "simple-marker",
-                style: "circle",
-                size: 5,
-                color: colors[3],
+                color: [122, 1, 120, 0.5],
                 outline: {
-                  style: "solid",
-                  color: [15, 15, 15, 0.3],
-                  width: 0.5
+                  color: [255,255,255,0.4],
+                  width: 0.7
                 }
-              }
+              },
+              visualVariables: [{
+                type: "size",
+                field: "POPULATION_2020",
+                minSize: 2,
+                maxSize: 60,
+                minDataValue: 100,
+                maxDataValue: 5000
+              }]
             }
           });
 
@@ -127,7 +105,7 @@
           const view = new MapView({
             container: "viewDiv",
             map: map,
-            center: [-73.94226, 40.7163],
+            center: [-96.80961623904446, 32.774082804554006],
             scale: initialViewScale,
             constraints: {
               maxScale: 18000,
@@ -139,42 +117,18 @@
 
           const featureReduction = {
             type: "binning",
-            fixedBinLevel: 6,
+            fixedBinLevel: 5,
 
             fields: [
               new AggregateField({
                 name: "aggregateCount",
-                alias: "Total count",
+                alias: "Number of block points",
                 statisticType: "count"
               }),
               new AggregateField({
-                name: "SUM_PERSONS_INJURED",
-                onStatisticField: "NUMBER_OF_PERSONS_INJURED",
-                statisticType: "sum"
-              }),
-              new AggregateField({
-                name: "SUM_PEDESTRIANS_INJURED",
-                onStatisticField: "NUMBER_OF_PEDESTRIANS_INJURED",
-                statisticType: "sum"
-              }),
-              new AggregateField({
-                name: "SUM_CYCLIST_INJURED",
-                onStatisticField: "NUMBER_OF_CYCLIST_INJURED",
-                statisticType: "sum"
-              }),
-              new AggregateField({
-                name: "SUM_MOTORIST_INJURED",
-                onStatisticField: "NUMBER_OF_MOTORIST_INJURED",
-                statisticType: "sum"
-              }),
-              new AggregateField({
-                name: "AVG_MOTORIST_INJURED",
-                onStatisticField: "NUMBER_OF_MOTORIST_INJURED",
-                statisticType: "avg"
-              }),
-              new AggregateField({
-                name: "SUM_KILLED",
-                onStatisticField: "NUMBER_OF_PERSONS_KILLED",
+                name: "population",
+                alias: "Total population",
+                onStatisticField: "POPULATION_2020",
                 statisticType: "sum"
               })
             ],
@@ -197,54 +151,27 @@
                   haloSize: 0.5
                 },
                 labelExpressionInfo: {
-                  expression: "Text($feature.aggregateCount, '#,###')"
+                  expression: "Text($feature.population, '#,###')"
                 }
               })
             ],
             popupEnabled: true,
             popupTemplate: {
-              title: "Crash summary",
+              title: "Statistic summary",
               content: [
                 {
                   type: "text",
-                  text: "{aggregateCount} car crashes occurred in this area."
-                },
+                  text: "{population} people live in this area."
+                }
+              ],
+              fieldInfos: [
                 {
-                  type: "fields",
-                  fieldInfos: [
-                    {
-                      fieldName: "aggregateCount",
-                      label: "Total crashes",
-                      format: {
-                        places: 0,
-                        digitSeparator: true
-                      }
-                    },
-                    {
-                      fieldName: "SUM_PERSONS_INJURED",
-                      label: "Total injured",
-                      format: {
-                        places: 0,
-                        digitSeparator: true
-                      }
-                    },
-                    {
-                      fieldName: "SUM_PEDESTRIANS_INJURED",
-                      label: "Pedestrians injured"
-                    },
-                    {
-                      fieldName: "SUM_CYCLIST_INJURED",
-                      label: "Cyclists injured"
-                    },
-                    {
-                      fieldName: "SUM_MOTORIST_INJURED",
-                      label: "Motorists injured"
-                    },
-                    {
-                      fieldName: "SUM_KILLED",
-                      label: "Total killed"
-                    }
-                  ]
+                  fieldName: "population",
+                  label: "Total population",
+                  format: {
+                    places: 0,
+                    digitSeparator: true
+                  }
                 }
               ]
             },
@@ -430,12 +357,12 @@
                           var binWidthMeters = ${binSize};
                           var viewResolution = ${view.resolution};
                           var binWidthPixels = binWidthMeters / viewResolution;
-                          var value = $feature.aggregateCount / 300;
+                          var value = $feature.Population / 50000;
 
                           var innerRatio = IIF(value > 1, 1, value);
                           var outerSize = binWidthPixels * (${initialViewScale} / $view.scale);
                           var innerSize = outerSize * innerRatio;
-                          return IIF( innerSize < 3, 3, innerSize ) * 0.75;
+                          return IIF( innerSize < 2, 2, innerSize ) * 0.75;
                         `,
                         returnType: "Default"
                       }
@@ -455,7 +382,7 @@
             "top-left"
           );
 
-          createLegend("crashes-wurman-total");
+          createLegend("population");
 
           function createLegend (fileName){
             // Add custom legend as an image to an Expand instance
@@ -494,6 +421,16 @@
                 image.style.width = null;
               }
             }
+          }
+
+          view.watch("scale", (scale) => {
+            layer.featureReduction = isWithinScaleThreshold()
+              ? featureReduction
+              : null;
+          });
+
+          function isWithinScaleThreshold() {
+            return view.scale > initialViewScale / 2;
           }
 
         })();
