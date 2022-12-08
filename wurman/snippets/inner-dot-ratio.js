@@ -24,12 +24,13 @@ featureReduction.renderer = {
             // The innerSize is determined by multiplying
             // the outerSize by the forest ratio
             expression: `
-              var binWidthMeters = ${binSize};
-              var viewResolution = ${view.resolution};
+              var binWidthMeters = 800;  // bin width in meters at level 6
+              var viewResolution = 38;  // meters per pixel
+              var initialViewScale = 144447;
               var binWidthPixels = binWidthMeters / viewResolution;
 
               var innerRatio = IIF($feature.AVG_MOTORIST_INJURED > 1, 1, $feature.AVG_MOTORIST_INJURED);
-              var outerSize = binWidthPixels * (${initialViewScale} / $view.scale);
+              var outerSize = binWidthPixels * (initialViewScale / $view.scale);
               var innerSize = outerSize * innerRatio;
               return innerSize * 0.75;
             `,

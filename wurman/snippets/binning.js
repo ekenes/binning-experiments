@@ -9,7 +9,7 @@ const featureReduction = {
     })
   ],
   // renderer defining Wurman dots style
-  // will be defined here
+  // will eventually be defined here
   renderer: {
     type: "simple",
     symbol: {
