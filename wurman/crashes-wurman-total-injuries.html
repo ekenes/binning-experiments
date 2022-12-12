@@ -66,8 +66,8 @@
       ) {
         (async () => {
 
-          const colors = ["#feebe2", "#fbb4b9", "#f768a1", "#c51b8a", "#7a0177"].map(c => new Color(c));
-          // const colors = ["#0060a6", "#2782c4", "#a889b8", "#ffa18e", "#ffcabf"].reverse().map(c => new Color(c));
+          // const colors = ["#feebe2", "#fbb4b9", "#f768a1", "#c51b8a", "#7a0177"].map(c => new Color(c));
+          const colors = ["#0060a6", "#2782c4", "#a889b8", "#ffa18e", "#ffcabf"].reverse().map(c => new Color(c));
           const outlineColor = colors[4].clone();
           outlineColor.a = 0.3;
 
@@ -498,7 +498,7 @@
             "top-left"
           );
 
-          createLegend("crashes-wurman-total-injuries");
+          createLegend("crashes-wurman-total-injuries-blue");
 
           function createLegend (fileName){
             // Add custom legend as an image to an Expand instance
