@@ -38,3 +38,14 @@ The following apps explore various ways to represent binned crash data as pie ch
 - [Number of pedestrians, cyclists, and motorists injured or killed in car crashes (size) (2020)](https://ekenes.github.io/binning-experiments/charts/crashes-pie-chart-size.html) - This app visualizes the total number of people injured or killed in car crashes in New York City (2020). Each pie chart is sized based on the total number of crashes in the bin.
 - [Number of pedestrians and cyclists injured or killed in car crashes (2020)](https://ekenes.github.io/binning-experiments/charts/crashes-pie-chart-non-motorists.html) - This app visualizes the total number of people injured or killed in car crashes in New York City (2020). The colors of the chart emphasize the numbers of pedestrians and cyclists who were injured or killed in car crashes.
 - [Number of pedestrians and cyclists injured or killed in car crashes (size) (2020)](https://ekenes.github.io/binning-experiments/charts/crashes-pie-chart-size-non-motorists.html) - This app visualizes the total number of people injured or killed in car crashes in New York City (2020). The colors of the chart emphasize the numbers of pedestrians and cyclists who were injured or killed in car crashes. Charts are sized based on the total number of crashes in the bin.
+
+## Compared with other aggregation methods
+
+- [No aggregation](https://ekenes.github.io/binning-experiments/compare-methods/points-only.html)
+- [Binning - level 6](https://ekenes.github.io/binning-experiments/compare-methods/binning-level-6.html)
+- [Binning - level 7](https://ekenes.github.io/binning-experiments/compare-methods/binning-level-7.html)
+- [Clustering](https://ekenes.github.io/binning-experiments/compare-methods/clustering.html)
+- [Heatmap - large scale](https://ekenes.github.io/binning-experiments/compare-methods/heatmap-large-scale.html)
+- [Heatmap - small scale](https://ekenes.github.io/binning-experiments/compare-methods/heatmap-small-scale.html)
+- [Opacity](https://ekenes.github.io/binning-experiments/compare-methods/opacity.html)
+- [Bloom](https://ekenes.github.io/binning-experiments/compare-methods/bloom.html)
