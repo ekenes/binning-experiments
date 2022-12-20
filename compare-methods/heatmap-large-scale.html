@@ -1,0 +1,187 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="initial-scale=1,maximum-scale=1,user-scalable=no"
+    />
+
+    <title>
+      Binning with aggregate fields | Sample | ArcGIS API for JavaScript 4.24
+    </title>
+
+    <style>
+      html,
+      body,
+      #viewDiv {
+        padding: 0;
+        margin: 0;
+        height: 100%;
+        width: 100%;
+      }
+      .description {
+        background-color: white;
+        padding: 10px;
+      }
+      .title {
+        background-color: inherit;
+        text-align: center;
+        font-size: 16pt;
+        padding: 5px 10px 10px 10px;
+        color: #363636
+      }
+    </style>
+
+    <script type="module" src="https://js.arcgis.com/calcite-components/1.0.0-beta.97/calcite.esm.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://js.arcgis.com/calcite-components/1.0.0-beta.97/calcite.css"/>
+
+    <link
+      rel="stylesheet"
+      href="https://js.arcgis.com/4.25/esri/themes/light/main.css"
+    />
+    <script src="https://js.arcgis.com/4.25/"></script>
+
+    <script type="text/javascript">
+      require([
+        "esri/Map",
+        "esri/views/MapView",
+        "esri/layers/FeatureLayer",
+        "esri/layers/support/LabelClass",
+        "esri/layers/support/AggregateField",
+        "esri/widgets/Legend",
+        "esri/widgets/Expand",
+        "esri/widgets/Home",
+        "esri/Color",
+        "esri/core/lang"
+      ], function (
+        Map,
+        MapView,
+        FeatureLayer,
+        LabelClass,
+        AggregateField,
+        Legend,
+        Expand,
+        Home,
+        Color,
+        esriLang
+      ) {
+        (async () => {
+
+          // const colors = ["#ccbba3", "#d3b68a", "#d9b270", "#e0ad57", "#e6a852", "#eca32f", "#f39f1f", "#f99a10", "#ff9500", "#ffae00", "#ffc600", "#ffde00", "#fff700"];
+          // Esri color ramps - Heatmap 2
+          // #f3e4e5,#e4becb,#d498b2,#c57298,#b95685,#ae3972,#a21d5e,#96004b,#ab006f,#c00093,#d500b7,#ea00db,#ff00ff
+          const colors = ["#f3e4e5", "#e4becb", "#d498b2", "#c57298", "#b95685", "#ae3972", "#a21d5e", "#96004b", "#ab006f", "#c00093", "#d500b7", "#ea00db", "#ff00ff"];
+          // Esri color ramps - Heatmap 16
+          // #b397b3,#bd84bd,#c672c6,#d05fd0,#d94cd9,#e339e3,#ec26ec,#f613f6,#ff00ff,#ff3bbf,#ff7580,#ffb040,#ffea00
+          // const colors = ["#b397b3", "#bd84bd", "#c672c6", "#d05fd0", "#d94cd9", "#e339e3", "#ec26ec", "#f613f6", "#ff00ff", "#ff3bbf", "#ff7580", "#ffb040", "#ffea00"];
+
+
+          // const colors = ["#feebe2", "#fbb4b9", "#f768a1", "#c51b8a", "#7a0177"].map(c => new Color(c));
+
+          function createColorStops (ramp){
+            const colors = esriLang.clone(ramp);
+            const firstColora = new Color(colors.shift());
+            firstColora.a = 0;
+            const firstColorb = firstColora.clone();
+            firstColorb.a = 0.01;
+
+            const b = colors.length;
+            const stops = [
+              { color: firstColora, ratio: 0 },
+              { color: firstColorb, ratio: 0.01 },
+              { color: firstColorb, ratio: 0.01 },
+              { color: firstColorb, ratio: 0.01 },
+              ...colors.map((c, i) => {
+                const ratio = (b-(b-(i+1)))/b;
+                const color = new Color(c);
+                color.a = ratio;
+                return {
+                  color,
+                  ratio
+                };
+              })
+            ];
+            return stops;
+          }
+
+          const year = 2020;
+          const initialViewScale = 288895;
+
+          const layer = new FeatureLayer({
+            title: "Motor vehicle crashes (2020)",
+            url: "https://services.arcgis.com/V6ZHFr6zdgNZuVG0/ArcGIS/rest/services/NYC_motor_crashes/FeatureServer/0",
+            popupTemplate: {
+              title: "Crash location",
+              content: [
+                {
+                  type: "fields",
+                  fieldInfos: [
+                    {
+                      fieldName: "CRASH_DATE",
+                      label: "Date",
+                      dateFormat: "day-short-month-year-long-time"
+                    },
+                    {
+                      fieldName: "NUMBER_OF_PERSONS_KILLED",
+                      label: "Fatalities"
+                    },
+                    {
+                      fieldName: "NUMBER_OF_PERSONS_INJURED",
+                      label: "Injuries"
+                    }
+                  ]
+                }
+              ]
+            },
+            definitionExpression: `CRASH_DATE > Date '12-31-${
+              year - 1
+            }' AND CRASH_DATE < Date '01-01-${year + 1}'`,
+            renderer: {
+              type: "heatmap",
+              colorStops: createColorStops(colors),
+              maxDensity: 2,
+              minDensity: 0,
+              radius: 2,
+              referenceScale: 125196
+            }
+          });
+
+          const map = new Map({
+            basemap: "gray-vector",
+            layers: [layer]
+          });
+
+          const view = new MapView({
+            container: "viewDiv",
+            map,
+            center: [-73.94226, 40.7163],
+            scale: initialViewScale,
+            constraints: {
+              // maxScale: 18000,
+              snapToZoom: false
+            }
+          });
+
+          view.ui.add(
+            new Home({
+              view: view
+            }),
+            "top-left"
+          );
+
+          view.ui.add(
+            new Expand({
+              view,
+              content: new Legend({ view })
+            }),
+            "top-left"
+          );
+
+        })();
+      });
+    </script>
+  </head>
+  <body>
+    <div id="viewDiv"></div>
+  </body>
+</html>
