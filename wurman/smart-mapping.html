@@ -62,8 +62,8 @@
         "esri/smartMapping/statistics/histogram",
         "esri/smartMapping/symbology/location",
         "esri/smartMapping/renderers/color",
+        "esri/smartMapping/renderers/type",
         "esri/layers/support/LabelClass",
-        "esri/layers/support/AggregateField",
         "esri/widgets/Legend",
         "esri/widgets/Expand",
         "esri/widgets/Home",
@@ -81,8 +81,8 @@
         histogram,
         locationSymbology,
         colorRendererCreator,
+        typeRendererCreator,
         LabelClass,
-        AggregateField,
         Legend,
         Expand,
         Home,
@@ -181,11 +181,6 @@
 
           const { extent } = await layer.queryExtent();
           view.extent = extent.expand(1.5);
-
-          // view.watch("scale", (scale) => {
-          //   console.log(scale);
-          //   console.log(view.center.longitude, view.center.latitude);
-          // })
 
           async function createBins(params){
             const { view, layer } = params;
@@ -372,7 +367,7 @@
 
           function getPrimitiveOverrides(rendererParams, stats){
             const { minBound, maxBound, binSizePixels } = stats;
-            const { view, field, normalizationField } = rendererParams;
+            const { view, field, normalizationField, colorField, uniqueValueInfos } = rendererParams;
 
             let value;
             let fields;
@@ -440,6 +435,57 @@
               }
             ];
 
+            if(colorField && uniqueValueInfos){
+
+              const uniqueValuesWithColors = uniqueValueInfos.map(uvinfo => {
+                return {
+                  color: uvinfo.symbol.color,
+                  value: uvinfo.value
+                };
+              })
+
+              const innerDotColorOverride = {
+                type: "CIMPrimitiveOverride",
+                primitiveName: "innerDot",
+                propertyName: "Color",
+                valueExpressionInfo: {
+                  type: "CIMExpressionInfo",
+                  title: "unique value color",
+                  expression: `
+                    $feature.${colorField}
+                    var value = $feature.${colorField};
+
+                    var uniqueValueInfos = ${uniqueValuesWithColors};
+
+                    function isEqualValue (v) {
+                      return v == value;
+                    }
+
+                    var matchedInfo = First(Filter(uniqueValueInfos, isEqualValue));
+                    return IIF(!IsEmpty(matchedInfo), matchedInfo.symbol.color, "rgba(128,128,128)");
+                  `,
+                  returnType: "Default"
+                }
+              };
+
+              const outerDotColorOverride = {
+                type: "CIMPrimitiveOverride",
+                primitiveName: "outerRing",
+                propertyName: "Color",
+                valueExpressionInfo: {
+                  type: "CIMExpressionInfo",
+                  title: "unique value color",
+                  expression: `
+                    return "gray";
+                  `,
+                  returnType: "Default"
+                }
+              };
+
+              primitiveOverrides.push(innerDotColorOverride);
+              primitiveOverrides.push(outerDotColorOverride);
+            }
+
             return primitiveOverrides;
           }
 
@@ -490,8 +536,51 @@
 
             binSizePixels = await getBinSizePixels({ view, layer });
 
+            let isUniqueValueColor = false;
+            let uniqueValueInfos;
+
+            if(colorFieldSelect.value) {
+
+              isUniqueValueColor = colorFieldSelect.value.indexOf("_mode") > -1;
+
+              if(!isUniqueValueColor){
+                const { visualVariable, statistics } = await colorRendererCreator.createVisualVariable({
+                  layer,
+                  view,
+                  field: colorFieldSelect.value,
+                  theme: colorThemeSelect.value,
+                  forBinning: true
+                });
+
+                renderer.visualVariables = [ visualVariable ];
+
+                const histogramResult = await histogram({
+                  layer,
+                  view,
+                  field: colorFieldSelect.value,
+                  forBinning: true,
+                  numBins: 60
+                });
+
+                updateColorSlider(visualVariable, statistics, histogramResult);
+              } else {
+                const uniqueValueRendererResponse = await typeRendererCreator.createRenderer({
+                  layer,
+                  view,
+                  field: colorFieldSelect.value,
+                  numTypes: 10,
+                  sortBy: "count",
+                  defaultSymbolEnabled: true,
+                  forBinning: true
+                });
+
+                uniqueValueInfos = uniqueValueRendererResponse.uniqueValueInfos;
+              }
+            }
+
             const primitiveOverrides = getPrimitiveOverrides({
-              view, field, normalizationField
+              view, field, normalizationField,
+              colorField: colorFieldSelect.value, uniqueValueInfos
             }, {
               minBound, maxBound, binSizePixels
             });
@@ -649,28 +738,6 @@
               }
             };
 
-            if(colorFieldSelect.value) {
-              const { visualVariable, statistics } = await colorRendererCreator.createVisualVariable({
-                layer,
-                view,
-                field: colorFieldSelect.value,
-                theme: colorThemeSelect.value,
-                forBinning: true
-              });
-
-              renderer.visualVariables = [ visualVariable ];
-
-              const histogramResult = await histogram({
-                layer,
-                view,
-                field: colorFieldSelect.value,
-                forBinning: true,
-                numBins: 60
-              });
-
-              updateColorSlider(visualVariable, statistics, histogramResult);
-            }
-
             updateSizeSlider({
               avg: stats.avg,
               stddev: stats.stddev,
@@ -696,7 +763,7 @@
               view, field, normalizationField
             }, {
               minBound, maxBound, binSizePixels
-            })
+            });
 
             const data = renderer.symbol.data;
             data.primitiveOverrides = primitiveOverrides;
@@ -769,6 +836,9 @@
           async function createFeatureReduction () {
             const featureReduction = await createBins({ layer, view });
             layer.featureReduction = featureReduction;
+
+            const stringFields = await getStringFields(layer);
+            createColorFieldSelect(colorFieldSelect, stringFields);
           }
 
           const createRendererBtn = document.getElementById("createRendererBtn");
@@ -805,8 +875,8 @@
           }
 
           async function selectFieldHandler (event) {
-            const stat = statisticTypeSelect.value;
             const fieldName = fieldSelect.value;
+            const stat = statisticTypeSelect.value;
             const aggregateField = createAggregateField(fieldName, stat);
 
             if(fieldName !== "aggregateCount"){
@@ -832,6 +902,15 @@
               .filter( field => validTypes.indexOf(field.type) > -1 );
           }
 
+          async function getStringFields(layer) {
+            await layer.load();
+
+            const validTypes = [ "string" ];
+
+            return layer.fields
+              .filter( field => validTypes.indexOf(field.type) > -1 );
+          }
+
           function createAggregateCountOption(){
             const option = document.createElement("option");
             option.value = "aggregateCount";
@@ -845,10 +924,27 @@
             fields.forEach((field, i) => {
               const option = document.createElement("option");
               option.value = field.name;
-              option.label = field.alias;
-              option.text = field.alias;
+              option.label = `${field.type} - ${field.alias}`;
+              option.text = `${field.type} - ${field.alias}`;
 
               select.appendChild(option);
+            });
+
+            return select;
+          }
+
+          function createColorFieldSelect(select, fields){
+
+            fields.forEach((field, i) => {
+              const option = document.createElement("option");
+              option.value = `${field.name}_mode`;
+              option.label = `Predominant value - ${field.alias}`;
+              option.text = `Predominant value - ${field.alias}`;
+
+              select.appendChild(option);
+
+              const aggregateField = createAggregateField(field.name, "mode");
+              updateFeatureReductionFields(layer, aggregateField);
             });
 
             return select;
@@ -881,15 +977,9 @@
           }
 
           function updateAggregateFieldSelect (select, aggregateField){
-            // if (select.length === 0){
-            //   const option = createAggregateCountOption();
-            //   select.appendChild(option);
-            //   return;
-            // }
 
             for(let i = 0; i < select.length; i++){
               select.options[i];
-              console.log(select.options[i]);
               if(select.options[i].value === aggregateField.name){
                 return;
               }
