@@ -1,0 +1,983 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="initial-scale=1,maximum-scale=1,user-scalable=no"
+    />
+
+    <title>
+      Binning with aggregate fields | Sample | ArcGIS API for JavaScript 4.24
+    </title>
+
+    <style>
+      html,
+      body,
+      #viewDiv {
+        padding: 0;
+        margin: 0;
+        height: 100%;
+        width: 100%;
+      }
+      .description {
+        background-color: white;
+        padding: 10px;
+      }
+      .title {
+        background-color: inherit;
+        text-align: center;
+        font-size: 16pt;
+        padding: 5px 10px 10px 10px;
+        color: #363636
+      }
+
+      #infoDiv {
+        padding: 10px;
+        display: flex;
+      }
+
+      #smartMappingDiv{
+        width: 250px;
+      }
+    </style>
+
+    <script type="module" src="https://js.arcgis.com/calcite-components/1.0.0-beta.97/calcite.esm.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://js.arcgis.com/calcite-components/1.0.0-beta.97/calcite.css"/>
+
+    <link
+      rel="stylesheet"
+      href="https://js.arcgis.com/4.25/esri/themes/light/main.css"
+    />
+    <script src="https://js.arcgis.com/4.25/"></script>
+
+    <script type="text/javascript">
+      require([
+        "esri/Map",
+        "esri/views/MapView",
+        "esri/layers/FeatureLayer",
+        "esri/layers/support/AggregateField",
+        "esri/smartMapping/heuristics/binLevel",
+        "esri/smartMapping/heuristics/scaleRange",
+        "esri/smartMapping/statistics/summaryStatistics",
+        "esri/smartMapping/statistics/histogram",
+        "esri/smartMapping/symbology/location",
+        "esri/smartMapping/renderers/color",
+        "esri/layers/support/LabelClass",
+        "esri/layers/support/AggregateField",
+        "esri/widgets/Legend",
+        "esri/widgets/Expand",
+        "esri/widgets/Home",
+        "esri/widgets/smartMapping/SizeSlider",
+        "esri/widgets/smartMapping/ColorSlider",
+        "esri/Color"
+      ], function (
+        Map,
+        MapView,
+        FeatureLayer,
+        AggregateField,
+        binLevel,
+        scaleRange,
+        summaryStatistics,
+        histogram,
+        locationSymbology,
+        colorRendererCreator,
+        LabelClass,
+        AggregateField,
+        Legend,
+        Expand,
+        Home,
+        SizeSlider,
+        ColorSlider,
+        Color
+      ) {
+        (async () => {
+
+          function getUrlParams() {
+            const queryParams = document.location.search.substr(1);
+            let result = {};
+
+            queryParams.split("&").forEach(function(part) {
+              var item = part.split("=");
+              result[item[0]] = decodeURIComponent(item[1]);
+            });
+
+            return result;
+          }
+
+          // function to set an id as a url param
+          function setUrlParams(id, layerId, portal) {
+            window.history.pushState("", "", `${window.location.pathname}?id=${id}&layerId=${layerId}&portal=${portal}`);
+          }
+
+          async function createLayer(){
+
+            let layer = null;
+
+            let { id, portal, layerId, url } = getUrlParams();
+
+            if(!url){
+              if(!id){
+                id = "94b553493bcf432fad439adbde231fbb";
+              }
+
+              if(!layerId){
+                layerId = 0;
+              }
+
+              if(!portal){
+                portal = "https://www.arcgis.com/";
+              }
+
+              setUrlParams(id, layerId, portal);
+
+              layer = new FeatureLayer({
+                portalItem: {
+                  id,
+                  portal: {
+                    url: portal
+                  }
+                },
+                layerId
+              });
+            } else {
+              portal = null;
+              id = null;
+              layerId = null;
+
+              layer = new FeatureLayer({
+                url
+              });
+            }
+
+            layer.opacity = 1;
+            layer.minScale = 0;
+            layer.maxScale = 0;
+
+            await layer.load();
+
+            if(layer.geometryType !== "point"){
+              alert("Only point layers are valid.");
+              throw new Error("Only point layers are valid.");
+            }
+
+            return layer;
+          }
+
+          const layer = await createLayer();
+
+          const map = new Map({
+            basemap: "gray-vector",
+            layers: [layer]
+          });
+
+          const view = new MapView({
+            container: "viewDiv",
+            map,
+            scale: 144447.638572,
+            center: [-90.16232569699594, 29.97990166495397]
+          });
+
+          await view.when();
+
+          const { extent } = await layer.queryExtent();
+          view.extent = extent.expand(1.5);
+
+          // view.watch("scale", (scale) => {
+          //   console.log(scale);
+          //   console.log(view.center.longitude, view.center.latitude);
+          // })
+
+          async function createBins(params){
+            const { view, layer } = params;
+            const fixedBinLevel = await binLevel({ view });
+            layer.featureReduction = {
+              type: "binning",
+              fixedBinLevel
+            };
+            const { minScale, maxScale } = await scaleRange({ layer, view, forBinning: true });
+
+            const outlineColor = "gray";
+            const featureReduction = {
+              type: "binning",
+              fixedBinLevel,
+
+              fields: [
+                new AggregateField({
+                  name: "aggregateCount",
+                  alias: "Total count",
+                  statisticType: "count"
+                }),
+              ],
+
+              labelsVisible: false,
+              popupEnabled: true,
+              popupTemplate: {
+                title: "Aggregate summary",
+                content: [
+                  {
+                    type: "text",
+                    text: "{aggregateCount} points are within this bin."
+                  }
+                ],
+                fieldInfos: [
+                  {
+                    fieldName: "aggregateCount",
+                    label: "Total count",
+                    format: {
+                      places: 0,
+                      digitSeparator: true
+                    }
+                  }
+                ]
+              }
+            };
+
+            return featureReduction;
+          }
+
+          const rendererStopsSelect = document.getElementById("rendererStopsSelect");
+
+          let sizeSlider = null;
+          let colorSlider = null;
+
+          let min, max, minBound, maxBound, binSizePixels, field, normalizationField;
+
+          function updateSizeSlider(stats) {
+            const { min, max, avg, stddev, minBound, maxBound, histogramResult } = stats;
+
+            if(!sizeSlider){
+              sizeSlider = new SizeSlider({
+                min,
+                max,
+                stops: [
+                  { value: minBound, size: 4 },
+                  { value: maxBound, size: 40 }
+                ],
+                histogramConfig: {
+                  bins: histogramResult.bins,
+                  average: avg,
+                  standardDeviation: stddev,
+                  standardDeviationCount: 2
+                },
+                container: "sizeSlider"
+              });
+
+              sizeSlider.on(["segment-drag", "thumb-change", "thumb-drag"], async (event) => {
+                const minBound = sizeSlider.stops[0].value;
+                const maxBound = sizeSlider.stops[1].value;
+
+                const renderer = await updateWurmanDotRenderer({
+                  min, max, minBound, maxBound
+                }, {
+                  binSizePixels, view, field, normalizationField
+                });
+
+                const featureReduction = layer.featureReduction.clone();
+                featureReduction.renderer = renderer;
+                layer.featureReduction = featureReduction;
+              });
+            } else {
+              sizeSlider.set({
+                min,
+                max,
+                stops: [
+                  { value: minBound, size: 4 },
+                  { value: maxBound, size: 40 }
+                ],
+                histogramConfig: {
+                  bins: histogramResult.bins,
+                  average: avg,
+                  standardDeviation: stddev,
+                  standardDeviationCount: 2
+                }
+              });
+            }
+          }
+
+          function updateColorSlider(vv, stats, histogramResult) {
+            const { min, max, avg, stddev } = stats;
+
+            if(!colorSlider){
+              colorSlider = new ColorSlider({
+                min,
+                max,
+                stops: vv.stops,
+                histogramConfig: {
+                  bins: histogramResult.bins,
+                  average: avg,
+                  standardDeviation: stddev,
+                  standardDeviationCount: 2
+                },
+                container: "colorSlider"
+              });
+
+              colorSlider.on(["segment-drag", "thumb-change", "thumb-drag"], async (event) => {
+                const featureReduction = layer.featureReduction.clone();
+                const renderer = featureReduction.renderer;
+
+                const colorVariable = getColorVariable(renderer);
+
+                if(colorVariable){
+                  colorVariable.stops = colorSlider.stops;
+                  renderer.visualVariables = [ colorVariable ];
+                }
+
+                featureReduction.renderer = renderer;
+                layer.featureReduction = featureReduction;
+              });
+            } else {
+              colorSlider.set({
+                min,
+                max,
+                stops: vv.stops,
+                histogramConfig: {
+                  bins: histogramResult.bins,
+                  average: avg,
+                  standardDeviation: stddev,
+                  standardDeviationCount: 2
+                }
+              });
+            }
+          }
+
+          function getColorVariable(renderer){
+            if(renderer.visualVariables && renderer.visualVariables.length){
+              const colorVariable = renderer.visualVariables.filter(vv => vv.type === "color")[0];
+              return colorVariable;
+            }
+            return null;
+          }
+
+          async function getBinSizePixels(params){
+            const { layer, view } = params;
+            const layerView = await view.whenLayerView(layer);
+
+            const binGraphicsResponse = await layerView.queryAggregates();
+            const binGraphics = binGraphicsResponse.features;
+
+            if(binGraphics.length === 0){
+              return 1;
+            }
+
+            const sampleBin = binGraphics[Math.floor(binGraphics.length * 0.5)]?.geometry;
+
+            const sampleBinWidth = sampleBin.extent.width;
+            const sampleBinHeight = sampleBin.extent.height;
+
+            const binSize = sampleBinWidth < sampleBinHeight ? sampleBinWidth : sampleBinHeight;
+            const binSizePixels = binSize / view.resolution;
+
+            return binSizePixels;
+          }
+
+          function getPrimitiveOverrides(rendererParams, stats){
+            const { minBound, maxBound, binSizePixels } = stats;
+            const { view, field, normalizationField } = rendererParams;
+
+            let value;
+            let fields;
+            if(!field){
+              value = 0;
+            } else {
+              value = `$feature.${field}`;
+              fields = `
+                $feature.${field};
+              `;
+            }
+
+            if(normalizationField){
+              value = `$feature.${field} / $feature.${normalizationField}`;
+              fields = `
+                $feature.${field};
+                $feature.${normalizationField};
+              `;
+            }
+
+            const primitiveOverrides = [
+              {
+                type: "CIMPrimitiveOverride",
+                primitiveName: "outerRing",
+                propertyName: "Size",
+                valueExpressionInfo: {
+                  type: "CIMExpressionInfo",
+                  title: "Size in pixels of outer ring at maxScale",
+                  // the pixel size at the largest scale
+                  // 42 represents the pixel size of the
+                  // circles at the view's largest scale (1:2,311,161)
+                  expression: `
+                    var binWidthPixels = ${binSizePixels};
+                    return (binWidthPixels * (${view.scale} / $view.scale)) * 0.75;
+                  `,
+                  returnType: "Default"
+                }
+              },
+              {
+                type: "CIMPrimitiveOverride",
+                primitiveName: "innerDot",
+                propertyName: "Size",
+                valueExpressionInfo: {
+                  type: "CIMExpressionInfo",
+                  title: "Size in pixels of inner ring at maxScale",
+                  // outerSize is the pixel size at the largest scale
+                  // The innerSize is determined by multiplying
+                  // the outerSize by the forest ratio
+                  expression: `
+                    ${fields}
+                    var value = ${value};
+
+                    var binWidthPixels = ${binSizePixels};
+                    var minBound = ${minBound};
+                    var maxBound = ${maxBound};
+                    var ratio = ( value - minBound) / (maxBound - minBound);
+
+                    var innerRatio = Constrain(ratio, 0, 1);
+                    var outerSize = binWidthPixels * (${view.scale} / $view.scale);
+                    var innerSize = outerSize * innerRatio;
+                    return innerSize * 0.75;
+                  `,
+                  returnType: "Default"
+                }
+              }
+            ];
+
+            return primitiveOverrides;
+          }
+
+          async function createWurmanDotRenderer(params){
+            const { layer, view, field, normalizationField } = params;
+
+            const statParams = {
+              layer,
+              view,
+              field,
+              normalizationField,
+              normalizationType: normalizationField ? "field" : null,
+              forBinning: true
+            };
+
+            const stats = await summaryStatistics(statParams);
+            const histogramResult = await histogram({
+              ...statParams,
+              numBins: 60
+            });
+
+            min = 0;
+            max = stats.max;
+            const mean = stats.avg;
+            const stddevHalf = stats.avg + (0.5 * stats.stddev);
+            const stddev1 = stats.avg + stats.stddev;
+            const stddev2 = stats.avg + (2 * stats.stddev);
+
+            const maxBoundDictionary = {
+              "mean": mean,
+              "0.5-std-dev": stddevHalf,
+              "1-std-dev": stddev1,
+              "2-std-dev": stddev2,
+              "max": max
+            };
+
+            maxBound = maxBoundDictionary[rendererStopsSelect.value];
+            minBound = min;
+
+            const { primaryScheme } = await locationSymbology.getSchemes({
+              basemap: view.map.basemap,
+              geometryType: layer.geometryType
+            });
+
+            const fillColor = primaryScheme.color;
+            const ringColor = primaryScheme.color.clone();
+            ringColor.a = 0.4;
+
+            binSizePixels = await getBinSizePixels({ view, layer });
+
+            const primitiveOverrides = getPrimitiveOverrides({
+              view, field, normalizationField
+            }, {
+              minBound, maxBound, binSizePixels
+            });
+
+            const renderer = {
+              type: "simple",
+              symbol: {
+                type: "cim",
+                data: {
+                  type: "CIMSymbolReference",
+                  symbol: {
+                    type: "CIMPointSymbol",
+                    symbolLayers: [
+                      {
+                        type: "CIMVectorMarker",
+                        enable: true,
+                        anchorPoint: { x: 0, y: 0 },
+                        anchorPointUnits: "Relative",
+                        primitiveName: "innerDot",
+                        frame: { xmin: 0.0, ymin: 0.0, xmax: 17.0, ymax: 17.0 },
+                        markerGraphics: [
+                          {
+                            type: "CIMMarkerGraphic",
+                            geometry: {
+                              rings: [
+                                [
+                                  [8.5, 0.2],
+                                  [7.06, 0.33],
+                                  [5.66, 0.7],
+                                  [4.35, 1.31],
+                                  [3.16, 2.14],
+                                  [2.14, 3.16],
+                                  [1.31, 4.35],
+                                  [0.7, 5.66],
+                                  [0.33, 7.06],
+                                  [0.2, 8.5],
+                                  [0.33, 9.94],
+                                  [0.7, 11.34],
+                                  [1.31, 12.65],
+                                  [2.14, 13.84],
+                                  [3.16, 14.86],
+                                  [4.35, 15.69],
+                                  [5.66, 16.3],
+                                  [7.06, 16.67],
+                                  [8.5, 16.8],
+                                  [9.94, 16.67],
+                                  [11.34, 16.3],
+                                  [12.65, 15.69],
+                                  [13.84, 14.86],
+                                  [14.86, 13.84],
+                                  [15.69, 12.65],
+                                  [16.3, 11.34],
+                                  [16.67, 9.94],
+                                  [16.8, 8.5],
+                                  [16.67, 7.06],
+                                  [16.3, 5.66],
+                                  [15.69, 4.35],
+                                  [14.86, 3.16],
+                                  [13.84, 2.14],
+                                  [12.65, 1.31],
+                                  [11.34, 0.7],
+                                  [9.94, 0.33],
+                                  [8.5, 0.2]
+                                ]
+                              ]
+                            },
+                            symbol: {
+                              type: "CIMPolygonSymbol",
+                              symbolLayers: [
+                                {
+                                  type: "CIMSolidFill",
+                                  enable: true,
+                                  color: fillColor.toJSON()
+                                }
+                              ]
+                            }
+                          }
+                        ],
+                        scaleSymbolsProportionally: true,
+                        respectFrame: true
+                      },
+                      {
+                        type: "CIMVectorMarker",
+                        enable: true,
+                        anchorPoint: { x: 0, y: 0 },
+                        anchorPointUnits: "Relative",
+                        primitiveName: "outerRing",
+                        frame: { xmin: 0.0, ymin: 0.0, xmax: 17.0, ymax: 17.0 },
+                        markerGraphics: [
+                          {
+                            type: "CIMMarkerGraphic",
+                            geometry: {
+                              rings: [
+                                [
+                                  [8.5, 0.2],
+                                  [7.06, 0.33],
+                                  [5.66, 0.7],
+                                  [4.35, 1.31],
+                                  [3.16, 2.14],
+                                  [2.14, 3.16],
+                                  [1.31, 4.35],
+                                  [0.7, 5.66],
+                                  [0.33, 7.06],
+                                  [0.2, 8.5],
+                                  [0.33, 9.94],
+                                  [0.7, 11.34],
+                                  [1.31, 12.65],
+                                  [2.14, 13.84],
+                                  [3.16, 14.86],
+                                  [4.35, 15.69],
+                                  [5.66, 16.3],
+                                  [7.06, 16.67],
+                                  [8.5, 16.8],
+                                  [9.94, 16.67],
+                                  [11.34, 16.3],
+                                  [12.65, 15.69],
+                                  [13.84, 14.86],
+                                  [14.86, 13.84],
+                                  [15.69, 12.65],
+                                  [16.3, 11.34],
+                                  [16.67, 9.94],
+                                  [16.8, 8.5],
+                                  [16.67, 7.06],
+                                  [16.3, 5.66],
+                                  [15.69, 4.35],
+                                  [14.86, 3.16],
+                                  [13.84, 2.14],
+                                  [12.65, 1.31],
+                                  [11.34, 0.7],
+                                  [9.94, 0.33],
+                                  [8.5, 0.2]
+                                ]
+                              ]
+                            },
+                            symbol: {
+                              type: "CIMLineSymbol",
+                              symbolLayers: [
+                                {
+                                  type: "CIMSolidStroke",
+                                  enable: true,
+                                  color: ringColor.toJSON(),
+                                  width: 1
+                                }
+                              ]
+                            }
+                          }
+                        ],
+                        scaleSymbolsProportionally: true,
+                        respectFrame: true
+                      }
+                    ]
+                  },
+                  primitiveOverrides
+                }
+              }
+            };
+
+            if(colorFieldSelect.value) {
+              const { visualVariable, statistics } = await colorRendererCreator.createVisualVariable({
+                layer,
+                view,
+                field: colorFieldSelect.value,
+                theme: colorThemeSelect.value,
+                forBinning: true
+              });
+
+              renderer.visualVariables = [ visualVariable ];
+
+              const histogramResult = await histogram({
+                layer,
+                view,
+                field: colorFieldSelect.value,
+                forBinning: true,
+                numBins: 60
+              });
+
+              updateColorSlider(visualVariable, statistics, histogramResult);
+            }
+
+            updateSizeSlider({
+              avg: stats.avg,
+              stddev: stats.stddev,
+              min,
+              max,
+              minBound,
+              maxBound,
+              histogramResult
+            });
+
+            return renderer;
+          }
+
+          async function updateWurmanDotRenderer(updatedValues, rendererParams){
+            const { min, max, minBound, maxBound  } = updatedValues;
+            const { view, field, normalizationField }  = rendererParams;
+            const featureReduction = layer.featureReduction.clone();
+            const { renderer } = featureReduction;
+
+            const binSizePixels = await getBinSizePixels({ view, layer });
+
+            const primitiveOverrides = getPrimitiveOverrides({
+              view, field, normalizationField
+            }, {
+              minBound, maxBound, binSizePixels
+            })
+
+            const data = renderer.symbol.data;
+            data.primitiveOverrides = primitiveOverrides;
+
+            return renderer;
+          }
+
+          view.ui.add(
+            new Home({
+              view: view
+            }),
+            "top-left"
+          );
+
+          view.ui.add("infoDiv", "top-right");
+
+          createLegend("crashes-wurman-total");
+
+          function createLegend (fileName){
+            // Add custom legend as an image to an Expand instance
+
+            const descriptionContainer = document.createElement("div");
+            descriptionContainer.classList.add("description");
+
+            const descriptionTitle = document.createElement("div");
+            descriptionTitle.innerHTML = `<h3>${layer.title}</h3>`;
+            descriptionTitle.classList.add("esri-widget");
+            // descriptionTitle.classList.add("title");
+            descriptionContainer.appendChild(descriptionTitle);
+
+            const image = document.createElement("img");
+            image.src = `./assets/${fileName}.png`;
+            descriptionContainer.appendChild(image);
+
+            view.ui.add(
+              new Expand({
+                view: view,
+                content: descriptionContainer,
+                expandIconClass: "esri-icon-legend"
+              }),
+              "top-left"
+            );
+
+            // Adjusts the size of the legend image
+            // based on the size of the view
+            view.when()
+              .then(adjustLegendByViewSize);
+
+            view.watch("widthBreakpoint", adjustLegendByViewSize);
+
+            function adjustLegendByViewSize() {
+              if (view.widthBreakpoint === "xsmall") {
+                image.style.width = "100%";
+              } else {
+                image.style.width = null;
+              }
+            }
+          }
+
+          const fieldSelect = document.getElementById("fieldSelect");
+          const normalizationFieldSelect = document.getElementById("normalizationFieldSelect");
+          const colorFieldSelect = document.getElementById("colorFieldSelect");
+          const colorThemeSelect = document.getElementById("colorThemeSelect");
+          const statisticTypeSelect = document.getElementById("statisticTypeSelect");
+          const colorRingCheckbox = document.getElementById("color-ring");
+
+          const numberFields = await getNumberFields(layer);
+          createFieldSelect(fieldSelect, numberFields);
+
+          async function createFeatureReduction () {
+            const featureReduction = await createBins({ layer, view });
+            layer.featureReduction = featureReduction;
+          }
+
+          const createRendererBtn = document.getElementById("createRendererBtn");
+          createRendererBtn.addEventListener("click", createRenderer);
+
+          async function createRenderer () {
+
+            if(!layer.featureReduction){
+              await createFeatureReduction();
+            }
+
+            field = getAggregateFieldName();
+            normalizationField = normalizationFieldSelect.value;
+
+            const renderer = await createWurmanDotRenderer({
+              layer,
+              view,
+              field,
+              normalizationField
+            });
+
+            const featureReduction = layer.featureReduction.clone();
+            featureReduction.renderer = renderer;
+            layer.featureReduction = featureReduction;
+          }
+
+          function getAggregateFieldName(){
+            const stat = statisticTypeSelect.value;
+            const fieldName = fieldSelect.value;
+            if(fieldName === "aggregateCount"){
+              return fieldName;
+            }
+            return `${fieldName}_${stat}`;
+          }
+
+          async function selectFieldHandler (event) {
+            const stat = statisticTypeSelect.value;
+            const fieldName = fieldSelect.value;
+            const aggregateField = createAggregateField(fieldName, stat);
+
+            if(fieldName !== "aggregateCount"){
+              updateFeatureReductionFields(layer, aggregateField);
+            }
+
+            await createRenderer();
+          }
+
+          fieldSelect.addEventListener("change", selectFieldHandler);
+          statisticTypeSelect.addEventListener("change", selectFieldHandler);
+          normalizationFieldSelect.addEventListener("change", createRenderer);
+          rendererStopsSelect.addEventListener("change", createRenderer);
+          colorFieldSelect.addEventListener("change", createRenderer);
+          colorThemeSelect.addEventListener("change", createRenderer);
+
+          async function getNumberFields(layer) {
+            await layer.load();
+
+            const validTypes = [ "small-integer", "integer", "single", "double", "long", "number" ];
+
+            return layer.fields
+              .filter( field => validTypes.indexOf(field.type) > -1 );
+          }
+
+          function createAggregateCountOption(){
+            const option = document.createElement("option");
+            option.value = "aggregateCount";
+            option.label = "Total Count";
+            option.selected = true;
+            return option;
+          }
+
+          function createFieldSelect(select, fields){
+
+            fields.forEach((field, i) => {
+              const option = document.createElement("option");
+              option.value = field.name;
+              option.label = field.alias;
+              option.text = field.alias;
+
+              select.appendChild(option);
+            });
+
+            return select;
+          }
+
+          function createAggregateField(fieldName, stat){
+            const aggregateField = new AggregateField({
+              name: `${fieldName}_${stat}`,
+              alias: `${fieldName} (${stat})`,
+              onStatisticField: fieldName,
+              statisticType: stat
+            });
+
+            return aggregateField;
+          }
+
+          function updateFeatureReductionFields(layer, aggregateField){
+            const featureReduction = layer.featureReduction.clone();
+            if(
+              featureReduction.fields.some((field) => field.name === aggregateField.name)
+            ){
+              return;
+            }
+            featureReduction.fields.push(aggregateField);
+            layer.featureReduction = featureReduction;
+
+            updateAggregateFieldSelect(normalizationFieldSelect, aggregateField);
+            updateAggregateFieldSelect(colorFieldSelect, aggregateField);
+            return featureReduction;
+          }
+
+          function updateAggregateFieldSelect (select, aggregateField){
+            // if (select.length === 0){
+            //   const option = createAggregateCountOption();
+            //   select.appendChild(option);
+            //   return;
+            // }
+
+            for(let i = 0; i < select.length; i++){
+              select.options[i];
+              console.log(select.options[i]);
+              if(select.options[i].value === aggregateField.name){
+                return;
+              }
+            }
+
+            const option = document.createElement("option");
+            option.value = aggregateField.name;
+            option.label = aggregateField.alias;
+            option.text = aggregateField.alias;
+            select.appendChild(option);
+          }
+
+        })();
+      });
+    </script>
+  </head>
+  <body>
+    <div id="viewDiv"></div>
+    <div id="infoDiv" class="esri-widget">
+      <div id="smartMappingDiv" class="esri-widget">
+        <button id="createRendererBtn" class="esri-button">Create Wurman dots</button>
+
+        Field
+        <div id="fieldSelectContainer">
+          <select id="fieldSelect" class="esri-select">
+            <option value="aggregateCount" selected>Total Count</option>
+          </select>
+        </div>
+
+        Statistic type
+        <select id="statisticTypeSelect" class="esri-select">
+          <option value="sum" selected>sum</option>
+          <option value="avg">avg</option>
+          <option value="min">min</option>
+          <option value="max">max</option>
+        </select>
+
+        Max Renderer Bound
+        <select id="rendererStopsSelect" class="esri-select">
+          <option value="mean">mean</option>
+          <option value="0.5-std-dev">1/2 std dev</option>
+          <option value="1-std-dev">1 std dev</option>
+          <option value="2-std-dev" selected>2 std dev</option>
+          <option value="max">max</option>
+        </select>
+
+        Normalization Field
+        <div id="normalizationFieldSelectContainer">
+          <select id="normalizationFieldSelect" class="esri-select">
+            <option value="" selected></option>
+            <option value="aggregateCount" >Total Count</option>
+          </select>
+        </div>
+
+        Color field
+        <div id="colorFieldSelectContainer">
+          <select id="colorFieldSelect" class="esri-select">
+            <option value="" selected></option>
+            <option value="aggregateCount">Total Count</option>
+          </select>
+        </div>
+
+        Color Theme
+        <div id="colorThemeSelectContainer">
+          <select id="colorThemeSelect" class="esri-select">
+            <option value="high-to-low" selected>High to low</option>
+            <option value="above-and-below">Above and below</option>
+            <option value="above">Above</option>
+            <option value="below">Below</option>
+            <option value="centered-on">Centered on</option>
+            <option value="extremes">Extremes</option>
+          </select>
+        </div>
+
+        <div>
+          <input type="checkbox" id="color-ring"> Apply color to ring?
+        </div>
+
+      </div>
+
+      <div id="sizeSliderContainer">
+        <div id="sizeSlider"></div>
+      </div>
+
+      <div id="colorSliderContainer">
+        <div id="colorSlider"></div>
+      </div>
+      <div id="legendDiv"></div>
+    </div>
+  </body>
+</html>
