@@ -292,6 +292,12 @@
           function updateColorSlider(vv, stats, histogramResult) {
             const { min, max, avg, stddev } = stats;
 
+            if(colorSlider && !vv){
+              colorSlider.container = null;
+              colorSlider.destroy();
+              colorSlider = null;
+            }
+
             if(!colorSlider){
               colorSlider = new ColorSlider({
                 min,
@@ -440,49 +446,51 @@
               let uniqueValuesWithColors = {};
 
               for (let i in uniqueValueInfos){
-                console.log(i);
                 const info = uniqueValueInfos[i];
                 uniqueValuesWithColors[info.value] = info.symbol.color.toJSON();
               }
 
+              const colorOverrideExpression = `
+                $feature.${colorField};
+                var value = $feature.${colorField};
+
+                var uniqueValueInfos = ${JSON.stringify(uniqueValuesWithColors)};
+
+                if(HasValue(uniqueValueInfos, value)){
+                  return uniqueValueInfos[value];
+                }
+                return [128,128,128,255];
+              `;
+
               const innerDotColorOverride = {
                 type: "CIMPrimitiveOverride",
-                primitiveName: "innerDot",
+                primitiveName: "innerDotFill",
                 propertyName: "Color",
                 valueExpressionInfo: {
                   type: "CIMExpressionInfo",
                   title: "unique value color",
-                  expression: `
-                    $feature.${colorField}
-                    var value = $feature.${colorField};
-
-                    var uniqueValueInfos = Dictionary(${JSON.stringify(uniqueValuesWithColors)});
-
-                    if(HasValue(uniqueValueInfos, value)){
-                      return uniqueValueInfos[value];
-                    }
-                    return [128,128,128,255];
-                  `,
+                  expression: colorOverrideExpression,
                   returnType: "Default"
                 }
               };
 
               const outerDotColorOverride = {
                 type: "CIMPrimitiveOverride",
-                primitiveName: "outerRing",
+                primitiveName: "outerRingFill",
                 propertyName: "Color",
                 valueExpressionInfo: {
                   type: "CIMExpressionInfo",
                   title: "unique value color",
-                  expression: `
-                    return "gray";
-                  `,
+                  expression: colorOverrideExpression,
                   returnType: "Default"
                 }
               };
 
               primitiveOverrides.push(innerDotColorOverride);
-              primitiveOverrides.push(outerDotColorOverride);
+
+              if(colorRingCheckbox.checked){
+                primitiveOverrides.push(outerDotColorOverride);
+              }
             }
 
             return primitiveOverrides;
@@ -537,7 +545,7 @@
             binSizePixels = await getBinSizePixels({ view, layer });
 
             let isUniqueValueColor = false;
-            let uniqueValueInfos;
+            let uniqueValueInfos, visualVariables;
 
             if(colorFieldSelect.value) {
 
@@ -555,7 +563,7 @@
                   forBinning: true
                 });
 
-                renderer.visualVariables = [ visualVariable ];
+                visualVariables = [ visualVariable ];
 
                 const histogramResult = await histogram({
                   layer,
@@ -577,7 +585,7 @@
                   forBinning: true
                 });
 
-                uniqueValueInfos = uniqueValueRendererResponse.uniqueValueInfos;
+                uniqueValueInfos = uniqueValueRendererResponse.renderer.uniqueValueInfos;
               }
             }
 
@@ -590,6 +598,7 @@
 
             const renderer = {
               type: "simple",
+              visualVariables,
               symbol: {
                 type: "cim",
                 data: {
@@ -656,7 +665,8 @@
                                 {
                                   type: "CIMSolidFill",
                                   enable: true,
-                                  color: fillColor.toJSON()
+                                  color: fillColor.toJSON(),
+                                  primitiveName: "innerDotFill"
                                 }
                               ]
                             }
@@ -725,7 +735,8 @@
                                   type: "CIMSolidStroke",
                                   enable: true,
                                   color: ringColor.toJSON(),
-                                  width: 1
+                                  width: 1,
+                                  primitiveName: "outerRingFill"
                                 }
                               ]
                             }
@@ -910,9 +921,15 @@
           statisticTypeSelect.addEventListener("change", selectFieldHandler);
           normalizationFieldSelect.addEventListener("change", createRenderer);
           rendererStopsSelect.addEventListener("change", createRenderer);
+
+          colorRingCheckbox.addEventListener("change", createRenderer);
+
           colorFieldSelect.addEventListener("change", async (event) => {
             const fieldName = colorFieldSelect.value;
-            if(fieldName !== "aggregateCount"){
+            const selectedIndex = colorFieldSelect.selectedIndex;
+            const optionText = colorFieldSelect.options[selectedIndex].innerText;
+
+            if(fieldName !== "aggregateCount" && optionText.indexOf("Predominant value - ") > -1){
               const aggregateField = createAggregateField(fieldName, "mode");
               updateFeatureReductionFields(layer, aggregateField);
             }
@@ -1001,7 +1018,6 @@
           function updateAggregateFieldSelect (select, aggregateField){
 
             for(let i = 0; i < select.length; i++){
-              select.options[i];
               if(select.options[i].value === aggregateField.name){
                 return;
               }
@@ -1077,7 +1093,7 @@
         </div>
 
         <div>
-          <input type="checkbox" id="color-ring"> Apply color to ring?
+          <input type="checkbox" id="color-ring" checked> Apply color to ring?
         </div>
 
       </div>
