@@ -437,12 +437,13 @@
 
             if(colorField && uniqueValueInfos){
 
-              const uniqueValuesWithColors = uniqueValueInfos.map(uvinfo => {
-                return {
-                  color: uvinfo.symbol.color,
-                  value: uvinfo.value
-                };
-              })
+              let uniqueValuesWithColors = {};
+
+              for (let i in uniqueValueInfos){
+                console.log(i);
+                const info = uniqueValueInfos[i];
+                uniqueValuesWithColors[info.value] = info.symbol.color.toJSON();
+              }
 
               const innerDotColorOverride = {
                 type: "CIMPrimitiveOverride",
@@ -455,14 +456,12 @@
                     $feature.${colorField}
                     var value = $feature.${colorField};
 
-                    var uniqueValueInfos = ${uniqueValuesWithColors};
+                    var uniqueValueInfos = Dictionary(${JSON.stringify(uniqueValuesWithColors)});
 
-                    function isEqualValue (v) {
-                      return v == value;
+                    if(HasValue(uniqueValueInfos, value)){
+                      return uniqueValueInfos[value];
                     }
-
-                    var matchedInfo = First(Filter(uniqueValueInfos, isEqualValue));
-                    return IIF(!IsEmpty(matchedInfo), matchedInfo.symbol.color, "rgba(128,128,128)");
+                    return [128,128,128,255];
                   `,
                   returnType: "Default"
                 }
@@ -491,6 +490,7 @@
 
           async function createWurmanDotRenderer(params){
             const { layer, view, field, normalizationField } = params;
+            const featureReduction = layer.featureReduction;
 
             const statParams = {
               layer,
@@ -541,13 +541,16 @@
 
             if(colorFieldSelect.value) {
 
-              isUniqueValueColor = colorFieldSelect.value.indexOf("_mode") > -1;
+              isUniqueValueColor = featureReduction.fields.some(field => {
+                return field.onStatisticField === colorFieldSelect.value &&
+                  field.statisticType === "mode";
+              });
 
               if(!isUniqueValueColor){
                 const { visualVariable, statistics } = await colorRendererCreator.createVisualVariable({
                   layer,
                   view,
-                  field: colorFieldSelect.value,
+                  field: getColorAggregateFieldName(isUniqueValueColor),
                   theme: colorThemeSelect.value,
                   forBinning: true
                 });
@@ -557,7 +560,7 @@
                 const histogramResult = await histogram({
                   layer,
                   view,
-                  field: colorFieldSelect.value,
+                  field: getColorAggregateFieldName(isUniqueValueColor),
                   forBinning: true,
                   numBins: 60
                 });
@@ -567,7 +570,7 @@
                 const uniqueValueRendererResponse = await typeRendererCreator.createRenderer({
                   layer,
                   view,
-                  field: colorFieldSelect.value,
+                  field: getColorAggregateFieldName(isUniqueValueColor),
                   numTypes: 10,
                   sortBy: "count",
                   defaultSymbolEnabled: true,
@@ -580,7 +583,7 @@
 
             const primitiveOverrides = getPrimitiveOverrides({
               view, field, normalizationField,
-              colorField: colorFieldSelect.value, uniqueValueInfos
+              colorField: getColorAggregateFieldName(isUniqueValueColor), uniqueValueInfos
             }, {
               minBound, maxBound, binSizePixels
             });
@@ -844,6 +847,13 @@
           const createRendererBtn = document.getElementById("createRendererBtn");
           createRendererBtn.addEventListener("click", createRenderer);
 
+
+
+
+
+            // const aggregateField = createAggregateField(field.name, "mode");
+            //   updateFeatureReductionFields(layer, aggregateField);
+
           async function createRenderer () {
 
             if(!layer.featureReduction){
@@ -874,6 +884,14 @@
             return `${fieldName}_${stat}`;
           }
 
+          function getColorAggregateFieldName(isType){
+            const fieldName = colorFieldSelect.value;
+            if(fieldName === "aggregateCount"){
+              return fieldName;
+            }
+            return isType ? `${fieldName}_mode` : fieldName;
+          }
+
           async function selectFieldHandler (event) {
             const fieldName = fieldSelect.value;
             const stat = statisticTypeSelect.value;
@@ -881,6 +899,8 @@
 
             if(fieldName !== "aggregateCount"){
               updateFeatureReductionFields(layer, aggregateField);
+              updateAggregateFieldSelect(normalizationFieldSelect, aggregateField);
+              updateAggregateFieldSelect(colorFieldSelect, aggregateField);
             }
 
             await createRenderer();
@@ -890,7 +910,15 @@
           statisticTypeSelect.addEventListener("change", selectFieldHandler);
           normalizationFieldSelect.addEventListener("change", createRenderer);
           rendererStopsSelect.addEventListener("change", createRenderer);
-          colorFieldSelect.addEventListener("change", createRenderer);
+          colorFieldSelect.addEventListener("change", async (event) => {
+            const fieldName = colorFieldSelect.value;
+            if(fieldName !== "aggregateCount"){
+              const aggregateField = createAggregateField(fieldName, "mode");
+              updateFeatureReductionFields(layer, aggregateField);
+            }
+
+            await createRenderer();
+          });
           colorThemeSelect.addEventListener("change", createRenderer);
 
           async function getNumberFields(layer) {
@@ -937,14 +965,11 @@
 
             fields.forEach((field, i) => {
               const option = document.createElement("option");
-              option.value = `${field.name}_mode`;
+              option.value = field.name;
               option.label = `Predominant value - ${field.alias}`;
               option.text = `Predominant value - ${field.alias}`;
 
               select.appendChild(option);
-
-              const aggregateField = createAggregateField(field.name, "mode");
-              updateFeatureReductionFields(layer, aggregateField);
             });
 
             return select;
@@ -970,9 +995,6 @@
             }
             featureReduction.fields.push(aggregateField);
             layer.featureReduction = featureReduction;
-
-            updateAggregateFieldSelect(normalizationFieldSelect, aggregateField);
-            updateAggregateFieldSelect(colorFieldSelect, aggregateField);
             return featureReduction;
           }
 
