@@ -305,9 +305,20 @@
             }
 
             const { min, max, avg, stddev } = stats;
+            const theme = colorThemeSelect.value;
+            const primaryHandleEnabled = theme === "above-and-below" || theme === "extremes" || theme === "centered-on";
+            const handlesSyncedToPrimary = false;
+            const syncedSegmentsEnabled = true;
+            const visibleElements = {
+              interactiveTrack: true
+            };
 
             if(!colorSlider){
               colorSlider = new ColorSlider({
+                primaryHandleEnabled,
+                handlesSyncedToPrimary,
+                syncedSegmentsEnabled,
+                visibleElements,
                 min,
                 max,
                 stops: vv.stops,
@@ -338,6 +349,7 @@
               });
             } else {
               colorSlider.set({
+                primaryHandleEnabled,
                 min,
                 max,
                 stops: vv.stops,
