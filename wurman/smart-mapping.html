@@ -576,11 +576,15 @@
                   field.statisticType === "mode";
               });
 
+              colorNormalizationFieldSelect.disabled = isUniqueValueColor;
+
               if(!isUniqueValueColor){
                 const { visualVariable, statistics } = await colorRendererCreator.createVisualVariable({
                   layer,
                   view,
                   field: getColorAggregateFieldName(isUniqueValueColor),
+                  normalizationField: colorNormalizationFieldSelect.value,
+                  normalizationType: colorNormalizationFieldSelect.value ? "field" : null,
                   theme: colorThemeSelect.value,
                   forBinning: true
                 });
@@ -593,11 +597,14 @@
                   layer,
                   view,
                   field: getColorAggregateFieldName(isUniqueValueColor),
+                  normalizationField: colorNormalizationFieldSelect.value,
+                  normalizationType: colorNormalizationFieldSelect.value ? "field" : null,
                   forBinning: true,
                   numBins: 60
                 });
 
               } else {
+
                 const uniqueValueRendererResponse = await typeRendererCreator.createRenderer({
                   layer,
                   view,
@@ -610,9 +617,8 @@
 
                 uniqueValueInfos = uniqueValueRendererResponse.renderer.uniqueValueInfos;
               }
-
-              updateColorSlider(colorVariable, colorStats, colorHistogramResult);
             }
+            updateColorSlider(colorVariable, colorStats, colorHistogramResult);
 
             const primitiveOverrides = getPrimitiveOverrides({
               view, field, normalizationField,
@@ -870,6 +876,7 @@
           const fieldSelect = document.getElementById("fieldSelect");
           const normalizationFieldSelect = document.getElementById("normalizationFieldSelect");
           const colorFieldSelect = document.getElementById("colorFieldSelect");
+          const colorNormalizationFieldSelect = document.getElementById("colorNormalizationFieldSelect");
           const colorThemeSelect = document.getElementById("colorThemeSelect");
           const statisticTypeSelect = document.getElementById("statisticTypeSelect");
           const colorRingCheckbox = document.getElementById("color-ring");
@@ -936,6 +943,7 @@
               updateFeatureReductionFields(layer, aggregateField);
               updateAggregateFieldSelect(normalizationFieldSelect, aggregateField);
               updateAggregateFieldSelect(colorFieldSelect, aggregateField);
+              updateAggregateFieldSelect(colorNormalizationFieldSelect, aggregateField);
             }
 
             await createRenderer();
@@ -944,6 +952,7 @@
           fieldSelect.addEventListener("change", selectFieldHandler);
           statisticTypeSelect.addEventListener("change", selectFieldHandler);
           normalizationFieldSelect.addEventListener("change", createRenderer);
+          colorNormalizationFieldSelect.addEventListener("change", createRenderer);
           rendererStopsSelect.addEventListener("change", createRenderer);
 
           colorRingCheckbox.addEventListener("change", createRenderer);
@@ -1105,6 +1114,14 @@
           <select id="colorFieldSelect" class="esri-select">
             <option value="" selected></option>
             <option value="aggregateCount">Total Count</option>
+          </select>
+        </div>
+
+        Color Normalization Field
+        <div id="colorNormalizationFieldSelectContainer">
+          <select id="colorNormalizationFieldSelect" class="esri-select">
+            <option value="" selected></option>
+            <option value="aggregateCount" >Total Count</option>
           </select>
         </div>
 
