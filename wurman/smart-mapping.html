@@ -577,6 +577,7 @@
               });
 
               colorNormalizationFieldSelect.disabled = isUniqueValueColor;
+              colorThemeSelect.disabled = isUniqueValueColor;
 
               if(!isUniqueValueColor){
                 const { visualVariable, statistics } = await colorRendererCreator.createVisualVariable({
@@ -970,6 +971,8 @@
             }
 
             colorRingCheckbox.disabled = !modeOptionSelected;
+            colorNormalizationFieldSelect.disabled = !fieldName;
+            colorThemeSelect.disabled = !fieldName;
 
             await createRenderer();
           });
@@ -1119,7 +1122,7 @@
 
         Color Normalization Field
         <div id="colorNormalizationFieldSelectContainer">
-          <select id="colorNormalizationFieldSelect" class="esri-select">
+          <select id="colorNormalizationFieldSelect" class="esri-select" disabled>
             <option value="" selected></option>
             <option value="aggregateCount" >Total Count</option>
           </select>
@@ -1127,7 +1130,7 @@
 
         Color Theme
         <div id="colorThemeSelectContainer">
-          <select id="colorThemeSelect" class="esri-select">
+          <select id="colorThemeSelect" class="esri-select" disabled>
             <option value="high-to-low" selected>High to low</option>
             <option value="above-and-below">Above and below</option>
             <option value="above">Above</option>
