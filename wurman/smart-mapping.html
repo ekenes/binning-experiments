@@ -10,6 +10,15 @@
       Binning with aggregate fields | Sample | ArcGIS API for JavaScript 4.24
     </title>
 
+    <script type="module" src="https://js.arcgis.com/calcite-components/1.0.0-beta.97/calcite.esm.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://js.arcgis.com/calcite-components/1.0.0-beta.97/calcite.css"/>
+
+    <link
+      rel="stylesheet"
+      href="https://js.arcgis.com/4.25/esri/themes/light/main.css"
+    />
+
+
     <style>
       html,
       body,
@@ -36,18 +45,24 @@
         display: flex;
       }
 
+      #sliders {
+        /* flex-direction: column; */
+        height: fit-content;
+      }
+
       #smartMappingDiv{
         width: 250px;
       }
+
+      .esri-size-slider .esri-slider .esri-slider__content {
+        height: 150px;
+      }
+      .esri-color-slider .esri-slider .esri-slider__content {
+        height: 150px;
+      }
+
     </style>
 
-    <script type="module" src="https://js.arcgis.com/calcite-components/1.0.0-beta.97/calcite.esm.js"></script>
-    <link rel="stylesheet" type="text/css" href="https://js.arcgis.com/calcite-components/1.0.0-beta.97/calcite.css"/>
-
-    <link
-      rel="stylesheet"
-      href="https://js.arcgis.com/4.25/esri/themes/light/main.css"
-    />
     <script src="https://js.arcgis.com/4.25/"></script>
 
     <script type="text/javascript">
@@ -1159,11 +1174,15 @@
 
       </div>
 
-      <div id="sizeSliderContainer">
-        <div id="sizeSlider"></div>
-      </div>
+      <div id="sliders">
 
-      <div id="colorSliderContainer">
+        <div id="sizeSliderContainer">
+          <div id="sizeSlider"></div>
+        </div>
+
+        <div id="colorSliderContainer">
+        </div>
+
       </div>
       <div id="legendDiv"></div>
     </div>
