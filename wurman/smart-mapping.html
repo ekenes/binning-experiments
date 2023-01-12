@@ -758,7 +758,7 @@
                               symbolLayers: [
                                 {
                                   type: "CIMSolidStroke",
-                                  enable: true,
+                                  enable: showRingCheckbox.checked,
                                   color: ringColor.toJSON(),
                                   width: 1,
                                   primitiveName: "outerRingFill"
@@ -873,6 +873,7 @@
           const colorThemeSelect = document.getElementById("colorThemeSelect");
           const statisticTypeSelect = document.getElementById("statisticTypeSelect");
           const colorRingCheckbox = document.getElementById("color-ring");
+          const showRingCheckbox = document.getElementById("show-ring");
 
           const numberFields = await getNumberFields(layer);
           createFieldSelect(fieldSelect, numberFields);
@@ -946,6 +947,7 @@
           rendererStopsSelect.addEventListener("change", createRenderer);
 
           colorRingCheckbox.addEventListener("change", createRenderer);
+          showRingCheckbox.addEventListener("change", createRenderer);
 
           colorFieldSelect.addEventListener("change", async (event) => {
             const fieldName = colorFieldSelect.value;
@@ -1120,6 +1122,9 @@
 
         <div>
           <input type="checkbox" id="color-ring" checked> Apply color to ring?
+        </div>
+        <div>
+          <input type="checkbox" id="show-ring" checked> Show outer ring
         </div>
 
       </div>
