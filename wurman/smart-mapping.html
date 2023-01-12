@@ -66,6 +66,7 @@
         "esri/layers/support/LabelClass",
         "esri/widgets/Legend",
         "esri/widgets/Expand",
+        "esri/widgets/BasemapGallery",
         "esri/widgets/Home",
         "esri/widgets/smartMapping/SizeSlider",
         "esri/widgets/smartMapping/ColorSlider",
@@ -85,6 +86,7 @@
         LabelClass,
         Legend,
         Expand,
+        BasemapGallery,
         Home,
         SizeSlider,
         ColorSlider,
@@ -833,6 +835,13 @@
 
           createLegend("crashes-wurman-total");
 
+          view.ui.add(new Expand({
+            view,
+            expanded: false,
+            content: new BasemapGallery({ view }),
+            group: "top-left"
+          }), "top-left");
+
           function createLegend (fileName){
             // Add custom legend as an image to an Expand instance
 
@@ -853,7 +862,8 @@
               new Expand({
                 view: view,
                 content: descriptionContainer,
-                expandIconClass: "esri-icon-legend"
+                expandIconClass: "esri-icon-legend",
+                group: "top-left"
               }),
               "top-left"
             );
