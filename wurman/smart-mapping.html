@@ -962,6 +962,7 @@
 
           async function selectFieldHandler (event) {
             const fieldName = fieldSelect.value;
+            statisticTypeSelect.disabled = fieldName === "aggregateCount";
             const stat = statisticTypeSelect.value;
             const aggregateField = createAggregateField(fieldName, stat);
 
@@ -1105,7 +1106,7 @@
       <div id="smartMappingDiv" class="esri-widget">
         <button id="createRendererBtn" class="esri-button">Create Wurman dots</button>
 
-        Field
+        Size Field
         <div id="fieldSelectContainer">
           <select id="fieldSelect" class="esri-select">
             <option value="aggregateCount" selected>Total Count</option>
@@ -1113,7 +1114,7 @@
         </div>
 
         Statistic type
-        <select id="statisticTypeSelect" class="esri-select">
+        <select id="statisticTypeSelect" class="esri-select" disabled>
           <option value="sum" selected>sum</option>
           <option value="avg">avg</option>
           <option value="min">min</option>
@@ -1129,7 +1130,7 @@
           <option value="max">max</option>
         </select>
 
-        Normalization Field
+        Size Normalization Field
         <div id="normalizationFieldSelectContainer">
           <select id="normalizationFieldSelect" class="esri-select">
             <option value="" selected></option>
