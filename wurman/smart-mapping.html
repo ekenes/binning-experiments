@@ -61,6 +61,10 @@
         height: 150px;
       }
 
+      #binLevelSlider{
+        height: 50px;
+      }
+
     </style>
 
     <script src="https://js.arcgis.com/4.25/"></script>
@@ -85,6 +89,7 @@
         "esri/widgets/Home",
         "esri/widgets/smartMapping/SizeSlider",
         "esri/widgets/smartMapping/ColorSlider",
+        "esri/widgets/Slider",
         "esri/Color"
       ], function (
         Map,
@@ -105,6 +110,7 @@
         Home,
         SizeSlider,
         ColorSlider,
+        Slider,
         Color
       ) {
         (async () => {
@@ -199,9 +205,35 @@
           const { extent } = await layer.queryExtent();
           view.extent = extent.expand(1.5);
 
+          const binLevelSlider = new Slider({
+            container: "binLevelSlider",
+            values: [1],
+            min: 2,
+            max: 6,
+            steps: 1,
+            disabled: true,
+            visibleElements: {
+              rangeLabels: true
+            },
+            layout: "horizontal-reversed",
+            labelFormatFunction: (value, type) => {
+              if(type === "max"){
+                return "Smaller bins";
+              }
+              if(type === "min"){
+                return "Larger bins";
+              }
+              return value;
+            }
+          });
+
           async function createBins(params){
             const { view, layer } = params;
+
             const fixedBinLevel = await binLevel({ view });
+            binLevelSlider.disabled = false;
+            binLevelSlider.values = [ fixedBinLevel ];
+
             layer.featureReduction = {
               type: "binning",
               fixedBinLevel
@@ -1004,6 +1036,13 @@
           });
           colorThemeSelect.addEventListener("change", createRenderer);
 
+          binLevelSlider.watch("values", ([value]) => {
+            if(layer.featureReduction){
+              layer.featureReduction.fixedBinLevel = value;
+              createRenderer();
+            }
+          })
+
           async function getNumberFields(layer) {
             await layer.load();
 
@@ -1105,6 +1144,9 @@
     <div id="infoDiv" class="esri-widget">
       <div id="smartMappingDiv" class="esri-widget">
         <button id="createRendererBtn" class="esri-button">Create Wurman dots</button>
+
+        <!-- Bin size -->
+        <div id="binLevelSlider"></div>
 
         Size Field
         <div id="fieldSelectContainer">
