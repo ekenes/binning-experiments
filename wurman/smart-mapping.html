@@ -65,13 +65,29 @@
         height: 50px;
       }
 
+      #overlayDiv {
+        z-index: 1;
+        position: absolute;
+        margin: auto auto;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        width: 300px;
+        height: 240px;
+        padding: 10px;
+        background-color: white;
+        border: 1px solid grey;
+        visibility: hidden;
+      }
+
     </style>
 
     <script src="https://js.arcgis.com/4.25/"></script>
 
     <script type="text/javascript">
       require([
-        "esri/Map",
+        "esri/WebMap",
         "esri/views/MapView",
         "esri/layers/FeatureLayer",
         "esri/layers/support/AggregateField",
@@ -92,7 +108,7 @@
         "esri/widgets/Slider",
         "esri/Color"
       ], function (
-        Map,
+        WebMap,
         MapView,
         FeatureLayer,
         AggregateField,
@@ -114,6 +130,8 @@
         Color
       ) {
         (async () => {
+
+          let portalItemUrl = "";
 
           function getUrlParams() {
             const queryParams = document.location.search.substr(1);
@@ -188,7 +206,7 @@
 
           const layer = await createLayer();
 
-          const map = new Map({
+          const map = new WebMap({
             basemap: "gray-vector",
             layers: [layer]
           });
@@ -200,7 +218,54 @@
             center: [-90.16232569699594, 29.97990166495397]
           });
 
-          await view.when();
+          await view.when(async () => {
+            await layer.load();
+            const title = layer.title + " (Wurman dots)";
+            const save = document.getElementById("saveWebMap");
+            save.disabled = false;
+            save.addEventListener("click", () => {
+              // item automatically casts to a PortalItem instance by saveAs
+              const item = {
+                title
+              };
+
+              // Update properties of the WebMap related to the view.
+              // This should be called just before saving a webmap.
+              map.updateFrom(view).then(() => {
+                map
+                  .saveAs(item)
+                  // Saved successfully
+                  .then((item) => {
+                    const itemPageUrl = `${item.portal.url}/home/item.html?id=${item.id}`;
+                    const link = `<a target="_blank" href="${itemPageUrl}">${title}</a>`;
+
+                    statusMessage(
+                      "Save WebMap",
+                      `<br> Successfully saved as <i>${link}</i>`
+                    );
+                  })
+                  // Save didn't work correctly
+                  .catch((error) => {
+                    if (error.name != "identity-manager:user-aborted") {
+                      statusMessage("Save WebMap", `<br> Error ${error}`);
+                    }
+                  });
+              });
+            });
+
+            const overlay = document.getElementById("overlayDiv");
+            const ok = overlay.getElementsByTagName("input")[0];
+
+            function statusMessage(head, info) {
+              document.getElementById("head").innerHTML = head;
+              document.getElementById("info").innerHTML = info;
+              overlay.style.visibility = "visible";
+            }
+
+            ok.addEventListener("click", () => {
+              overlay.style.visibility = "hidden";
+            });
+          });
 
           const { extent } = await layer.queryExtent();
           view.extent = extent.expand(1.5);
@@ -280,6 +345,7 @@
           }
 
           const rendererStopsSelect = document.getElementById("rendererStopsSelect");
+          rendererStopsSelect.disabled = true;
 
           let sizeSlider = null;
           let colorSlider = null;
@@ -932,11 +998,15 @@
           }
 
           const fieldSelect = document.getElementById("fieldSelect");
+          fieldSelect.disabled = true;
           const normalizationFieldSelect = document.getElementById("normalizationFieldSelect");
+          normalizationFieldSelect.disabled = true;
           const colorFieldSelect = document.getElementById("colorFieldSelect");
+          colorFieldSelect.disabled = true;
           const colorNormalizationFieldSelect = document.getElementById("colorNormalizationFieldSelect");
           const colorThemeSelect = document.getElementById("colorThemeSelect");
           const statisticTypeSelect = document.getElementById("statisticTypeSelect");
+          statisticTypeSelect.disabled = true;
           const colorRingCheckbox = document.getElementById("color-ring");
           const showRingCheckbox = document.getElementById("show-ring");
 
@@ -944,6 +1014,12 @@
           createFieldSelect(fieldSelect, numberFields);
 
           async function createFeatureReduction () {
+            fieldSelect.disabled = false;
+            normalizationFieldSelect.disabled = false;
+            colorFieldSelect.disabled = false;
+            statisticTypeSelect.disabled = false;
+            rendererStopsSelect.disabled = false;
+
             const featureReduction = await createBins({ layer, view });
             layer.featureReduction = featureReduction;
 
@@ -1215,6 +1291,14 @@
           <input type="checkbox" id="show-ring" checked> Show outer ring
         </div>
 
+        <input
+          id="saveWebMap"
+          type="button"
+          value="Save"
+          disabled
+          class="esri-button"
+        />
+
       </div>
 
       <div id="sliders">
@@ -1228,6 +1312,11 @@
 
       </div>
       <div id="legendDiv"></div>
+    </div>
+    <div id="overlayDiv" class="esri-widget">
+      <h4 class="esri-heading" id="head"></h4>
+      <label id="info"></label>
+      <input type="button" value="OK" class="esri-button" />
     </div>
   </body>
 </html>
