@@ -15,7 +15,7 @@
 
     <link
       rel="stylesheet"
-      href="https://js.arcgis.com/4.25/esri/themes/light/main.css"
+      href="https://js.arcgis.com/4.26/esri/themes/light/main.css"
     />
 
 
@@ -83,7 +83,7 @@
 
     </style>
 
-    <script src="https://js.arcgis.com/4.25/"></script>
+    <script src="https://js.arcgis.com/4.26/"></script>
 
     <script type="text/javascript">
       require([
@@ -827,6 +827,7 @@
                       {
                         type: "CIMVectorMarker",
                         enable: true,
+                        colorLocked: !colorRingCheckbox.checked,
                         anchorPoint: { x: 0, y: 0 },
                         anchorPointUnits: "Relative",
                         primitiveName: "outerRing",
@@ -878,20 +879,23 @@
                               ]
                             },
                             symbol: {
-                              type: "CIMLineSymbol",
+                              type: "CIMPolygonSymbol",
                               symbolLayers: [
                                 {
-                                  type: "CIMSolidStroke",
+                                  type: "CIMSolidFill",
                                   enable: showRingCheckbox.checked,
                                   color: ringColor.toJSON(),
-                                  width: 1,
-                                  primitiveName: "outerRingFill"
+                                  primitiveName: "outerRingFill",
+                                  effects: [{
+                                    type: "CIMGeometricEffectDonut",
+                                    width: 0.75
+                                  }]
                                 }
                               ]
                             }
                           }
                         ],
-                        scaleSymbolsProportionally: true,
+                        scaleSymbolsProportionally: false,
                         respectFrame: true
                       }
                     ]
@@ -1106,7 +1110,7 @@
               updateFeatureReductionFields(layer, aggregateField);
             }
 
-            colorRingCheckbox.disabled = !modeOptionSelected;
+            // colorRingCheckbox.disabled = !modeOptionSelected;
             colorNormalizationFieldSelect.disabled = !fieldName;
             colorThemeSelect.disabled = !fieldName;
 
