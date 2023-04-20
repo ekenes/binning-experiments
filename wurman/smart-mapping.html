@@ -94,6 +94,7 @@
         "esri/smartMapping/heuristics/binLevel",
         "esri/smartMapping/heuristics/scaleRange",
         "esri/smartMapping/statistics/summaryStatistics",
+        "esri/smartMapping/statistics/spatialStatistics",
         "esri/smartMapping/statistics/histogram",
         "esri/smartMapping/symbology/location",
         "esri/smartMapping/renderers/color",
@@ -115,6 +116,7 @@
         binLevel,
         scaleRange,
         summaryStatistics,
+        spatialStatistics,
         histogram,
         locationSymbology,
         colorRendererCreator,
@@ -196,8 +198,8 @@
 
             await layer.load();
 
-            if(layer.geometryType !== "point"){
-              alert("Only point layers are valid.");
+            if(layer.geometryType !== "point" && layer.geometryType !== "polygon"){
+              alert("Only point or polygon layers are valid.");
               throw new Error("Only point layers are valid.");
             }
 
@@ -350,7 +352,7 @@
           let sizeSlider = null;
           let colorSlider = null;
 
-          let min, max, minBound, maxBound, binSizePixels, field, normalizationField;
+          let min, max, minBound, maxBound, binSizePixels, isGrid, field, normalizationField;
 
           function updateSizeSlider(stats) {
             const { min, max, avg, stddev, minBound, maxBound, histogramResult } = stats;
@@ -375,16 +377,21 @@
               sizeSlider.on(["segment-drag", "thumb-change", "thumb-drag"], async (event) => {
                 const minBound = sizeSlider.stops[0].value;
                 const maxBound = sizeSlider.stops[1].value;
+                const forBinning = Boolean(layer.featureReduction);
 
                 const renderer = await updateWurmanDotRenderer({
                   min, max, minBound, maxBound
                 }, {
-                  binSizePixels, view, layer, field, normalizationField
+                  view, layer, field, normalizationField, forBinning
                 });
 
-                const featureReduction = layer.featureReduction.clone();
-                featureReduction.renderer = renderer;
-                layer.featureReduction = featureReduction;
+                if(forBinning){
+                  const featureReduction = layer.featureReduction.clone();
+                  featureReduction.renderer = renderer;
+                  layer.featureReduction = featureReduction;
+                } else {
+                  layer.renderer = renderer;
+                }
               });
             } else {
               sizeSlider.set({
@@ -487,25 +494,52 @@
           }
 
           async function getBinSizePixels(params){
-            const { layer, view } = params;
+            const { layer, view, forBinning } = params;
             const layerView = await view.whenLayerView(layer);
 
-            const binGraphicsResponse = await layerView.queryAggregates();
-            const binGraphics = binGraphicsResponse.features;
+            if(forBinning){
+              const binGraphicsResponse = await layerView.queryAggregates();
+              const binGraphics = binGraphicsResponse.features;
 
-            if(binGraphics.length === 0){
-              return 1;
+              if(binGraphics.length === 0){
+                return 1;
+              }
+
+              const sampleBin = binGraphics[Math.floor(binGraphics.length * 0.5)]?.geometry;
+
+              const sampleBinWidth = sampleBin.extent.width;
+              const sampleBinHeight = sampleBin.extent.height;
+
+              const binSize = sampleBinWidth < sampleBinHeight ? sampleBinWidth : sampleBinHeight;
+              const binSizePixels = binSize / view.resolution;
+
+              return {
+                binSizePixels,
+                isGrid: true
+              };
+            } else {
+              const layerGraphicsResponse = await layerView.queryFeatures();
+              const binGraphics = layerGraphicsResponse.features;
+
+              if(binGraphics.length === 0){
+                return 1;
+              }
+
+              const { minSize, maxSize, avgSize } = await spatialStatistics({
+                features: binGraphics,
+                geometryType: "polygon"
+              });
+
+              const threshold = 0.1;
+              const isGrid = !(minSize < avgSize * (1 - threshold) || maxSize > avgSize * (1 + threshold));
+              const binSize = isGrid ? avgSize * (1-threshold) : minSize;
+              const binSizePixels = binSize / view.resolution;
+
+              return {
+                binSizePixels,
+                isGrid
+              };
             }
-
-            const sampleBin = binGraphics[Math.floor(binGraphics.length * 0.5)]?.geometry;
-
-            const sampleBinWidth = sampleBin.extent.width;
-            const sampleBinHeight = sampleBin.extent.height;
-
-            const binSize = sampleBinWidth < sampleBinHeight ? sampleBinWidth : sampleBinHeight;
-            const binSizePixels = binSize / view.resolution;
-
-            return binSizePixels;
           }
 
           function getPrimitiveOverrides(rendererParams, stats){
@@ -531,23 +565,22 @@
               `;
             }
 
-            const primitiveOverrides = [
+            const outerRingExpressionInfo = {
+              type: "CIMExpressionInfo",
+              title: "Size in pixels of outer ring at maxScale",
+              expression: `
+                var binWidthPixels = ${binSizePixels};
+                return (binWidthPixels * (${view.scale} / $view.scale)) * 0.75;
+              `,
+              returnType: "Default"
+            };
+
+            let primitiveOverrides = [
               {
                 type: "CIMPrimitiveOverride",
                 primitiveName: "outerRing",
                 propertyName: "Size",
-                valueExpressionInfo: {
-                  type: "CIMExpressionInfo",
-                  title: "Size in pixels of outer ring at maxScale",
-                  // the pixel size at the largest scale
-                  // 42 represents the pixel size of the
-                  // circles at the view's largest scale (1:2,311,161)
-                  expression: `
-                    var binWidthPixels = ${binSizePixels};
-                    return (binWidthPixels * (${view.scale} / $view.scale)) * 0.75;
-                  `,
-                  returnType: "Default"
-                }
+                valueExpressionInfo: outerRingExpressionInfo
               },
               {
                 type: "CIMPrimitiveOverride",
@@ -632,12 +665,29 @@
               }
             }
 
+            if(!isGrid){
+              const stepXOverride = {
+                type: "CIMPrimitiveOverride",
+                primitiveName: "stepXY",
+                propertyName: "stepX",
+                valueExpressionInfo: outerRingExpressionInfo
+              };
+
+              const stepYOverride = {
+                type: "CIMPrimitiveOverride",
+                primitiveName: "stepXY",
+                propertyName: "stepY",
+                valueExpressionInfo: outerRingExpressionInfo
+              };
+
+              primitiveOverrides = [...primitiveOverrides, stepXOverride, stepYOverride];
+            }
+
             return primitiveOverrides;
           }
 
           async function createWurmanDotRenderer(params){
-            const { layer, view, field, normalizationField } = params;
-            const featureReduction = layer.featureReduction;
+            const { layer, view, field, normalizationField, forBinning } = params;
 
             const statParams = {
               layer,
@@ -645,7 +695,7 @@
               field,
               normalizationField,
               normalizationType: normalizationField ? "field" : null,
-              forBinning: true
+              forBinning
             };
 
             const stats = await summaryStatistics(statParams);
@@ -681,16 +731,21 @@
             const ringColor = primaryScheme.color.clone();
             ringColor.a = 0.4;
 
-            binSizePixels = await getBinSizePixels({ view, layer });
+            const getBinSizePixelsResult = await getBinSizePixels({ view, layer, forBinning });
+            binSizePixels = getBinSizePixelsResult.binSizePixels;
+            isGrid = getBinSizePixelsResult.isGrid;
 
             let isUniqueValueColor = false;
             let uniqueValueInfos, colorVariable, visualVariables, colorStats, colorHistogramResult;
 
             if(colorFieldSelect.value) {
 
-              isUniqueValueColor = featureReduction.fields.some(field => {
+              isUniqueValueColor = forBinning ? featureReduction.fields.some(field => {
                 return field.onStatisticField === colorFieldSelect.value &&
                   field.statisticType === "mode";
+              }) : layer.fields.some(field => {
+                return field.name === colorFieldSelect.value &&
+                  field.type === "string";
               });
 
               colorNormalizationFieldSelect.disabled = isUniqueValueColor;
@@ -700,11 +755,11 @@
                 const { visualVariable, statistics } = await colorRendererCreator.createVisualVariable({
                   layer,
                   view,
-                  field: getColorAggregateFieldName(isUniqueValueColor),
+                  field: getColorAggregateFieldName(isUniqueValueColor && forBinning),
                   normalizationField: colorNormalizationFieldSelect.value,
                   normalizationType: colorNormalizationFieldSelect.value ? "field" : null,
                   theme: colorThemeSelect.value,
-                  forBinning: true
+                  forBinning
                 });
 
                 colorVariable = visualVariable;
@@ -714,10 +769,10 @@
                 colorHistogramResult = await histogram({
                   layer,
                   view,
-                  field: getColorAggregateFieldName(isUniqueValueColor),
+                  field: getColorAggregateFieldName(isUniqueValueColor && forBinning),
                   normalizationField: colorNormalizationFieldSelect.value,
                   normalizationType: colorNormalizationFieldSelect.value ? "field" : null,
-                  forBinning: true,
+                  forBinning,
                   numBins: 60
                 });
 
@@ -726,11 +781,11 @@
                 const uniqueValueRendererResponse = await typeRendererCreator.createRenderer({
                   layer,
                   view,
-                  field: getColorAggregateFieldName(isUniqueValueColor),
+                  field: getColorAggregateFieldName(false),
                   numTypes: 10,
                   sortBy: "count",
                   defaultSymbolEnabled: true,
-                  forBinning: true
+                  forBinning
                 });
 
                 uniqueValueInfos = uniqueValueRendererResponse.renderer.uniqueValueInfos;
@@ -740,10 +795,21 @@
 
             const primitiveOverrides = getPrimitiveOverrides({
               view, field, normalizationField,
-              colorField: getColorAggregateFieldName(isUniqueValueColor), uniqueValueInfos
+              colorField: getColorAggregateFieldName(isUniqueValueColor && forBinning), uniqueValueInfos
             }, {
-              minBound, maxBound, binSizePixels
+              minBound, maxBound, binSizePixels, isGrid
             });
+
+            const markerPlacement = isGrid ? null : {
+              primitiveName: "stepXY",
+              type: "CIMMarkerPlacementInsidePolygon",
+              gridType: "Fixed",
+              randomness: 100,
+              seed: 13,
+              // stepX: 32,  prim override driven
+              // stepY: 32,
+              clipping: "DoNotClip"
+            };
 
             const renderer = {
               type: "simple",
@@ -822,7 +888,8 @@
                           }
                         ],
                         scaleSymbolsProportionally: true,
-                        respectFrame: true
+                        respectFrame: true,
+                        markerPlacement
                       },
                       {
                         type: "CIMVectorMarker",
@@ -896,7 +963,8 @@
                           }
                         ],
                         scaleSymbolsProportionally: false,
-                        respectFrame: true
+                        respectFrame: true,
+                        markerPlacement
                       }
                     ]
                   },
@@ -920,11 +988,10 @@
 
           async function updateWurmanDotRenderer(updatedValues, rendererParams){
             const { min, max, minBound, maxBound  } = updatedValues;
-            const { view, layer, field, normalizationField }  = rendererParams;
-            const featureReduction = layer.featureReduction.clone();
-            const { renderer } = featureReduction;
+            const { view, layer, field, normalizationField, forBinning }  = rendererParams;
+            const renderer = forBinning ? layer.featureReduction?.renderer.clone() : layer.renderer.clone();
 
-            const binSizePixels = await getBinSizePixels({ view, layer });
+            const { binSizePixels, isGrid } = await getBinSizePixels({ view, layer, forBinning });
 
             const primitiveOverrides = getPrimitiveOverrides({
               view, field, normalizationField
@@ -1004,7 +1071,7 @@
           }
 
           const fieldSelect = document.getElementById("fieldSelect");
-          fieldSelect.disabled = true;
+          fieldSelect.disabled = false;
           const normalizationFieldSelect = document.getElementById("normalizationFieldSelect");
           normalizationFieldSelect.disabled = true;
           const colorFieldSelect = document.getElementById("colorFieldSelect");
@@ -1016,21 +1083,23 @@
           const colorRingCheckbox = document.getElementById("color-ring");
           const showRingCheckbox = document.getElementById("show-ring");
 
+          await layer.load();
+          const forBinning = layer.geometryType === "point";
+
           const numberFields = await getNumberFields(layer);
+          const stringFields = await getStringFields(layer);
           createFieldSelect(fieldSelect, numberFields);
+          createColorFieldSelect(colorFieldSelect, stringFields, forBinning);
+
+          if(!forBinning){
+            createFieldSelect(normalizationFieldSelect, numberFields);
+            createFieldSelect(colorFieldSelect, numberFields);
+            createFieldSelect(colorNormalizationFieldSelect, numberFields);
+          }
 
           async function createFeatureReduction () {
-            fieldSelect.disabled = false;
-            normalizationFieldSelect.disabled = false;
-            colorFieldSelect.disabled = false;
-            statisticTypeSelect.disabled = false;
-            rendererStopsSelect.disabled = false;
-
             const featureReduction = await createBins({ layer, view });
             layer.featureReduction = featureReduction;
-
-            const stringFields = await getStringFields(layer);
-            createColorFieldSelect(colorFieldSelect, stringFields);
           }
 
           const createRendererBtn = document.getElementById("createRendererBtn");
@@ -1038,23 +1107,35 @@
 
           async function createRenderer () {
 
-            if(layer?.featureReduction?.type !== "binning"){
+            const forBinning = layer?.geometryType === "point";
+            if(forBinning && layer?.featureReduction?.type !== "binning"){
               await createFeatureReduction();
             }
 
-            field = getAggregateFieldName();
+            fieldSelect.disabled = false;
+            normalizationFieldSelect.disabled = false;
+            colorFieldSelect.disabled = false;
+            statisticTypeSelect.disabled = false;
+            rendererStopsSelect.disabled = false;
+
+            field = forBinning ? getAggregateFieldName() : fieldSelect.value;
             normalizationField = normalizationFieldSelect.value;
 
             const renderer = await createWurmanDotRenderer({
               layer,
               view,
               field,
-              normalizationField
+              normalizationField,
+              forBinning
             });
 
-            const featureReduction = layer.featureReduction.clone();
-            featureReduction.renderer = renderer;
-            layer.featureReduction = featureReduction;
+            if(forBinning){
+              const featureReduction = layer.featureReduction.clone();
+              featureReduction.renderer = renderer;
+              layer.featureReduction = featureReduction;
+            } else {
+              layer.renderer = renderer;
+            }
           }
 
           function getAggregateFieldName(){
@@ -1075,12 +1156,13 @@
           }
 
           async function selectFieldHandler (event) {
+            const forBinning = layer.geometryType === "point";
             const fieldName = fieldSelect.value;
-            statisticTypeSelect.disabled = fieldName === "aggregateCount";
-            const stat = statisticTypeSelect.value;
-            const aggregateField = createAggregateField(fieldName, stat);
 
-            if(fieldName !== "aggregateCount"){
+            if(forBinning && fieldName !== "aggregateCount"){
+              statisticTypeSelect.disabled = fieldName === "aggregateCount";
+              const stat = statisticTypeSelect.value;
+              const aggregateField = createAggregateField(fieldName, stat);
               updateFeatureReductionFields(layer, aggregateField);
               updateAggregateFieldSelect(normalizationFieldSelect, aggregateField);
               updateAggregateFieldSelect(colorFieldSelect, aggregateField);
@@ -1101,6 +1183,7 @@
 
           colorFieldSelect.addEventListener("change", async (event) => {
             const fieldName = colorFieldSelect.value;
+
             const selectedIndex = colorFieldSelect.selectedIndex;
             const optionText = colorFieldSelect.options[selectedIndex].innerText;
             const modeOptionSelected = optionText.indexOf("Predominant value - ") > -1;
@@ -1165,13 +1248,13 @@
             return select;
           }
 
-          function createColorFieldSelect(select, fields){
+          function createColorFieldSelect(select, fields, forBinning){
 
             fields.forEach((field, i) => {
               const option = document.createElement("option");
               option.value = field.name;
-              option.label = `Predominant value - ${field.alias}`;
-              option.text = `Predominant value - ${field.alias}`;
+              option.label = forBinning ? `Predominant value - ${field.alias}` : field.alias;
+              option.text = forBinning ? `Predominant value - ${field.alias}` : field.alias;
 
               select.appendChild(option);
             });
