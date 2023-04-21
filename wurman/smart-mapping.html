@@ -532,7 +532,7 @@
 
               const threshold = 0.1;
               const isGrid = !(minSize < avgSize * (1 - threshold) || maxSize > avgSize * (1 + threshold));
-              const binSize = isGrid ? avgSize * (1-threshold) : minSize;
+              const binSize = isGrid ? avgSize * (1-threshold) : (2 * minSize);
               const binSizePixels = binSize / view.resolution;
 
               return {
@@ -543,7 +543,7 @@
           }
 
           function getPrimitiveOverrides(rendererParams, stats){
-            const { minBound, maxBound, binSizePixels } = stats;
+            const { minBound, maxBound, binSizePixels, isGrid } = stats;
             const { view, field, normalizationField, colorField, uniqueValueInfos } = rendererParams;
 
             let value;
@@ -568,10 +568,10 @@
             const outerRingExpressionInfo = {
               type: "CIMExpressionInfo",
               title: "Size in pixels of outer ring at maxScale",
-              expression: `
+              expression: isGrid ? `
                 var binWidthPixels = ${binSizePixels};
                 return (binWidthPixels * (${view.scale} / $view.scale)) * 0.75;
-              `,
+              ` : "15",
               returnType: "Default"
             };
 
@@ -592,7 +592,7 @@
                   // outerSize is the pixel size at the largest scale
                   // The innerSize is determined by multiplying
                   // the outerSize by the forest ratio
-                  expression: `
+                  expression: isGrid ? `
                     ${fields}
                     var value = ${value};
 
@@ -603,6 +603,21 @@
 
                     var innerRatio = Constrain(ratio, 0, 1);
                     var outerSize = binWidthPixels * (${view.scale} / $view.scale);
+                    // 0 is what the minSize could be if provided in UI
+                    var innerSize = (outerSize * innerRatio) + 0;
+                    // pixel to point conversion
+                    return innerSize * 0.75;
+                  ` : `
+                    ${fields}
+                    var value = ${value};
+
+                    var binWidthPixels = ${binSizePixels};
+                    var minBound = ${minBound};
+                    var maxBound = ${maxBound};
+                    var ratio = ( value - minBound) / (maxBound - minBound);
+
+                    var innerRatio = Constrain(ratio, 0, 1);
+                    var outerSize = 20;
                     // 0 is what the minSize could be if provided in UI
                     var innerSize = (outerSize * innerRatio) + 0;
                     // pixel to point conversion
