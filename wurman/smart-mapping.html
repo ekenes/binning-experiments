@@ -65,6 +65,10 @@
         height: 50px;
       }
 
+      #gridSizeSlider{
+        height: 50px;
+      }
+
       #overlayDiv {
         z-index: 1;
         position: absolute;
@@ -294,6 +298,18 @@
             }
           });
 
+          const gridSizeSlider = new Slider({
+            container: "gridSizeSlider",
+            values: [20],
+            min: 4,
+            max: 40,
+            steps: 1,
+            disabled: true,
+            visibleElements: {
+              rangeLabels: true
+            }
+          });
+
           async function createBins(params){
             const { view, layer } = params;
 
@@ -378,9 +394,10 @@
                 const minBound = sizeSlider.stops[0].value;
                 const maxBound = sizeSlider.stops[1].value;
                 const forBinning = Boolean(layer.featureReduction);
+                const gridSize = gridSizeSlider.values[0];
 
                 const renderer = await updateWurmanDotRenderer({
-                  min, max, minBound, maxBound
+                  min, max, minBound, maxBound, gridSize
                 }, {
                   view, layer, field, normalizationField, forBinning
                 });
@@ -456,8 +473,8 @@
               colorSliderContainer.appendChild(colorSlider.container);
 
               colorSlider.on(["segment-drag", "thumb-change", "thumb-drag"], async (event) => {
-                const featureReduction = layer.featureReduction.clone();
-                const renderer = featureReduction.renderer;
+                const forBinning = Boolean(layer.featureReduction);
+                const renderer = forBinning ? layer.featureReduction?.renderer.clone() : layer.renderer.clone();
 
                 const colorVariable = getColorVariable(renderer);
 
@@ -466,8 +483,13 @@
                   renderer.visualVariables = [ colorVariable ];
                 }
 
-                featureReduction.renderer = renderer;
-                layer.featureReduction = featureReduction;
+                if(forBinning){
+                  const featureReduction = layer.featureReduction.clone();
+                  featureReduction.renderer = renderer;
+                  layer.featureReduction = featureReduction;
+                } else {
+                  layer.renderer = renderer;
+                }
               });
             } else {
               colorSlider.set({
@@ -543,8 +565,8 @@
           }
 
           function getPrimitiveOverrides(rendererParams, stats){
+            const { view, field, normalizationField, colorField, uniqueValueInfos, gridSize } = rendererParams;
             const { minBound, maxBound, binSizePixels, isGrid } = stats;
-            const { view, field, normalizationField, colorField, uniqueValueInfos } = rendererParams;
 
             let value;
             let fields;
@@ -571,7 +593,7 @@
               expression: isGrid ? `
                 var binWidthPixels = ${binSizePixels};
                 return (binWidthPixels * (${view.scale} / $view.scale)) * 0.75;
-              ` : "15",
+              ` : `${gridSize} * 0.75`,
               returnType: "Default"
             };
 
@@ -617,7 +639,7 @@
                     var ratio = ( value - minBound) / (maxBound - minBound);
 
                     var innerRatio = Constrain(ratio, 0, 1);
-                    var outerSize = 20;
+                    var outerSize = ${gridSize} * 0.75;
                     // 0 is what the minSize could be if provided in UI
                     var innerSize = (outerSize * innerRatio) + 0;
                     // pixel to point conversion
@@ -702,7 +724,7 @@
           }
 
           async function createWurmanDotRenderer(params){
-            const { layer, view, field, normalizationField, forBinning } = params;
+            const { layer, view, field, normalizationField, gridSize, forBinning } = params;
 
             const statParams = {
               layer,
@@ -810,7 +832,8 @@
 
             const primitiveOverrides = getPrimitiveOverrides({
               view, field, normalizationField,
-              colorField: getColorAggregateFieldName(isUniqueValueColor && forBinning), uniqueValueInfos
+              colorField: getColorAggregateFieldName(isUniqueValueColor && forBinning), uniqueValueInfos,
+              gridSize: gridSize || 20
             }, {
               minBound, maxBound, binSizePixels, isGrid
             });
@@ -825,6 +848,8 @@
               // stepY: 32,
               clipping: "DoNotClip"
             };
+
+            gridSizeSlider.disabled = isGrid;
 
             const renderer = {
               type: "simple",
@@ -1002,16 +1027,16 @@
           }
 
           async function updateWurmanDotRenderer(updatedValues, rendererParams){
-            const { min, max, minBound, maxBound  } = updatedValues;
+            const { min, max, minBound, maxBound, gridSize  } = updatedValues;
             const { view, layer, field, normalizationField, forBinning }  = rendererParams;
             const renderer = forBinning ? layer.featureReduction?.renderer.clone() : layer.renderer.clone();
 
             const { binSizePixels, isGrid } = await getBinSizePixels({ view, layer, forBinning });
 
             const primitiveOverrides = getPrimitiveOverrides({
-              view, field, normalizationField
+              view, field, normalizationField, gridSize
             }, {
-              minBound, maxBound, binSizePixels
+              minBound, maxBound, binSizePixels, isGrid
             });
 
             const data = renderer.symbol.data;
@@ -1135,13 +1160,15 @@
 
             field = forBinning ? getAggregateFieldName() : fieldSelect.value;
             normalizationField = normalizationFieldSelect.value;
+            // const gridSize = gridSizeSlider.values[0];
 
             const renderer = await createWurmanDotRenderer({
               layer,
               view,
               field,
               normalizationField,
-              forBinning
+              forBinning,
+              // gridSize
             });
 
             if(forBinning){
@@ -1221,7 +1248,22 @@
               layer.featureReduction.fixedBinLevel = value;
               createRenderer();
             }
-          })
+          });
+
+          gridSizeSlider.watch("values", async ([value]) => {
+            const minBound = sizeSlider.stops[0].value;
+            const maxBound = sizeSlider.stops[1].value;
+            const forBinning = Boolean(layer.featureReduction);
+            const gridSize = value;
+
+            const renderer = await updateWurmanDotRenderer({
+              min, max, minBound, maxBound, gridSize
+            }, {
+              view, layer, field, normalizationField, forBinning
+            });
+
+            layer.renderer = renderer;
+          });
 
           async function getNumberFields(layer) {
             await layer.load();
@@ -1327,6 +1369,10 @@
 
         <!-- Bin size -->
         <div id="binLevelSlider"></div>
+
+        <!-- Bin size -->
+        Grid resolution
+        <div id="gridSizeSlider"></div>
 
         Size Field
         <div id="fieldSelectContainer">
