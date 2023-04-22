@@ -226,7 +226,7 @@
 
           await view.when(async () => {
             await layer.load();
-            const title = layer.title + " (Wurman dots)";
+            const title = layer.title + " (Proportional Grid)";
             const save = document.getElementById("saveWebMap");
             save.disabled = false;
             save.addEventListener("click", () => {
@@ -310,8 +310,11 @@
             }
           });
 
+          /**
+           * Creates default binning configuration for a point layer
+           */
           async function createBins(params){
-            const { view, layer } = params;
+            const { view, layer, fields } = params;
 
             const fixedBinLevel = await binLevel({ view });
             binLevelSlider.disabled = false;
@@ -327,15 +330,7 @@
             const featureReduction = {
               type: "binning",
               fixedBinLevel,
-
-              fields: [
-                new AggregateField({
-                  name: "aggregateCount",
-                  alias: "Total count",
-                  statisticType: "count"
-                }),
-              ],
-
+              fields,
               labelsVisible: false,
               popupEnabled: true,
               popupTemplate: {
@@ -520,6 +515,7 @@
             const layerView = await view.whenLayerView(layer);
 
             if(forBinning){
+              // For binned layers
               const binGraphicsResponse = await layerView.queryAggregates();
               const binGraphics = binGraphicsResponse.features;
 
@@ -540,6 +536,7 @@
                 isGrid: true
               };
             } else {
+              // For polygon layers
               const layerGraphicsResponse = await layerView.queryFeatures();
               const binGraphics = layerGraphicsResponse.features;
 
@@ -565,7 +562,8 @@
           }
 
           function getPrimitiveOverrides(rendererParams, stats){
-            const { view, field, normalizationField, colorField, uniqueValueInfos, gridSize } = rendererParams;
+            const { view, field, normalizationField, typeOptions, gridSize } = rendererParams;
+            const gridSizePixels = gridSize || 20;
             const { minBound, maxBound, binSizePixels, isGrid } = stats;
 
             let value;
@@ -593,7 +591,7 @@
               expression: isGrid ? `
                 var binWidthPixels = ${binSizePixels};
                 return (binWidthPixels * (${view.scale} / $view.scale)) * 0.75;
-              ` : `${gridSize} * 0.75`,
+              ` : `${gridSizePixels} * 0.75`,
               returnType: "Default"
             };
 
@@ -639,7 +637,7 @@
                     var ratio = ( value - minBound) / (maxBound - minBound);
 
                     var innerRatio = Constrain(ratio, 0, 1);
-                    var outerSize = ${gridSize} * 0.75;
+                    var outerSize = ${gridSizePixels} * 0.75;
                     // 0 is what the minSize could be if provided in UI
                     var innerSize = (outerSize * innerRatio) + 0;
                     // pixel to point conversion
@@ -650,7 +648,9 @@
               }
             ];
 
-            if(colorField && uniqueValueInfos){
+            if(typeOptions?.typeField && typeOptions?.uniqueValueInfos){
+
+              const { typeField, uniqueValueInfos } = typeOptions;
 
               let uniqueValuesWithColors = {};
 
@@ -660,8 +660,8 @@
               }
 
               const colorOverrideExpression = `
-                $feature.${colorField};
-                var value = $feature.${colorField};
+                $feature.${typeField};
+                var value = $feature.${typeField};
 
                 var uniqueValueInfos = ${JSON.stringify(uniqueValuesWithColors)};
 
@@ -673,19 +673,7 @@
 
               const innerDotColorOverride = {
                 type: "CIMPrimitiveOverride",
-                primitiveName: "innerDotFill",
-                propertyName: "Color",
-                valueExpressionInfo: {
-                  type: "CIMExpressionInfo",
-                  title: "unique value color",
-                  expression: colorOverrideExpression,
-                  returnType: "Default"
-                }
-              };
-
-              const outerDotColorOverride = {
-                type: "CIMPrimitiveOverride",
-                primitiveName: "outerRingFill",
+                primitiveName: "symbolFill",
                 propertyName: "Color",
                 valueExpressionInfo: {
                   type: "CIMExpressionInfo",
@@ -696,10 +684,6 @@
               };
 
               primitiveOverrides.push(innerDotColorOverride);
-
-              if(colorRingCheckbox.checked){
-                primitiveOverrides.push(outerDotColorOverride);
-              }
             }
 
             if(!isGrid){
@@ -724,7 +708,31 @@
           }
 
           async function createWurmanDotRenderer(params){
-            const { layer, view, field, normalizationField, gridSize, forBinning } = params;
+            const {
+              layer,
+              view,
+              field,
+              normalizationField,
+              minValue,
+              maxValue,
+              typeOptions,
+              vvOptions,
+              gridSize,
+              forBinning
+            } = params;
+
+            const {
+              typeField,
+              numTypes,
+              sortBy,
+              sortEnabled
+            } = typeOptions;
+
+            const {
+              vvField,
+              vvNormalizationField,
+              theme,
+            } = vvOptions;
 
             const statParams = {
               layer,
@@ -732,6 +740,8 @@
               field,
               normalizationField,
               normalizationType: normalizationField ? "field" : null,
+              minValue,
+              maxValue,
               forBinning
             };
 
@@ -775,65 +785,55 @@
             let isUniqueValueColor = false;
             let uniqueValueInfos, colorVariable, visualVariables, colorStats, colorHistogramResult;
 
-            if(colorFieldSelect.value) {
-
-              isUniqueValueColor = forBinning ? featureReduction.fields.some(field => {
-                return field.onStatisticField === colorFieldSelect.value &&
-                  field.statisticType === "mode";
-              }) : layer.fields.some(field => {
-                return field.name === colorFieldSelect.value &&
-                  field.type === "string";
+            if(typeField){
+              const uniqueValueRendererResponse = await typeRendererCreator.createRenderer({
+                layer,
+                view,
+                field: typeField,
+                numTypes,
+                sortBy,
+                defaultSymbolEnabled: true,
+                forBinning
               });
 
-              colorNormalizationFieldSelect.disabled = isUniqueValueColor;
-              colorThemeSelect.disabled = isUniqueValueColor;
-
-              if(!isUniqueValueColor){
-                const { visualVariable, statistics } = await colorRendererCreator.createVisualVariable({
-                  layer,
-                  view,
-                  field: getColorAggregateFieldName(isUniqueValueColor && forBinning),
-                  normalizationField: colorNormalizationFieldSelect.value,
-                  normalizationType: colorNormalizationFieldSelect.value ? "field" : null,
-                  theme: colorThemeSelect.value,
-                  forBinning
-                });
-
-                colorVariable = visualVariable;
-                colorStats = statistics;
-                visualVariables = [ colorVariable ];
-
-                colorHistogramResult = await histogram({
-                  layer,
-                  view,
-                  field: getColorAggregateFieldName(isUniqueValueColor && forBinning),
-                  normalizationField: colorNormalizationFieldSelect.value,
-                  normalizationType: colorNormalizationFieldSelect.value ? "field" : null,
-                  forBinning,
-                  numBins: 60
-                });
-
-              } else {
-
-                const uniqueValueRendererResponse = await typeRendererCreator.createRenderer({
-                  layer,
-                  view,
-                  field: getColorAggregateFieldName(false),
-                  numTypes: 10,
-                  sortBy: "count",
-                  defaultSymbolEnabled: true,
-                  forBinning
-                });
-
-                uniqueValueInfos = uniqueValueRendererResponse.renderer.uniqueValueInfos;
-              }
+              uniqueValueInfos = uniqueValueRendererResponse.renderer.uniqueValueInfos;
             }
+
+            if( vvField ){
+              const { visualVariable, statistics } = await colorRendererCreator.createVisualVariable({
+                layer,
+                view,
+                field: vvField,
+                normalizationField: vvNormalizationField,
+                normalizationType: vvNormalizationField ? "field" : null,
+                theme,
+                forBinning
+              });
+
+              colorVariable = visualVariable;
+              colorStats = statistics;
+              visualVariables = [ colorVariable ];
+
+              colorHistogramResult = await histogram({
+                layer,
+                view,
+                field: vvField,
+                normalizationField: vvNormalizationField,
+                normalizationType: vvNormalizationField ? "field" : null,
+                forBinning,
+                numBins: 60
+              });
+            }
+
             updateColorSlider(colorVariable, colorStats, colorHistogramResult);
 
             const primitiveOverrides = getPrimitiveOverrides({
               view, field, normalizationField,
-              colorField: getColorAggregateFieldName(isUniqueValueColor && forBinning), uniqueValueInfos,
-              gridSize: gridSize || 20
+              typeOptions: {
+                typeField,
+                uniqueValueInfos
+              },
+              gridSize
             }, {
               minBound, maxBound, binSizePixels, isGrid
             });
@@ -844,12 +844,10 @@
               gridType: "Fixed",
               randomness: 100,
               seed: 13,
-              // stepX: 32,  prim override driven
-              // stepY: 32,
+              stepX: gridSize,
+              stepY: gridSize,
               clipping: "DoNotClip"
             };
-
-            gridSizeSlider.disabled = isGrid;
 
             const renderer = {
               type: "simple",
@@ -921,7 +919,7 @@
                                   type: "CIMSolidFill",
                                   enable: true,
                                   color: fillColor.toJSON(),
-                                  primitiveName: "innerDotFill"
+                                  primitiveName: "symbolFill"
                                 }
                               ]
                             }
@@ -934,7 +932,7 @@
                       {
                         type: "CIMVectorMarker",
                         enable: true,
-                        colorLocked: !colorRingCheckbox.checked,
+                        colorLocked: false,
                         anchorPoint: { x: 0, y: 0 },
                         anchorPointUnits: "Relative",
                         primitiveName: "outerRing",
@@ -990,9 +988,9 @@
                               symbolLayers: [
                                 {
                                   type: "CIMSolidFill",
-                                  enable: showRingCheckbox.checked,
+                                  enable: true,
                                   color: ringColor.toJSON(),
-                                  primitiveName: "outerRingFill",
+                                  primitiveName: "symbolFill",
                                   effects: [{
                                     type: "CIMGeometricEffectDonut",
                                     width: 0.75
@@ -1013,17 +1011,20 @@
               }
             };
 
-            updateSizeSlider({
-              avg: stats.avg,
-              stddev: stats.stddev,
-              min,
-              max,
-              minBound,
-              maxBound,
-              histogramResult
-            });
-
-            return renderer;
+            return {
+              renderer,
+              isGrid,
+              statistics: {
+                avg: stats.avg,
+                stddev: stats.stddev,
+                min,
+                max,
+                minBound,
+                maxBound,
+                histogramResult
+              },
+              uniqueValueInfos
+            };
           }
 
           async function updateWurmanDotRenderer(updatedValues, rendererParams){
@@ -1116,29 +1117,56 @@
           normalizationFieldSelect.disabled = true;
           const colorFieldSelect = document.getElementById("colorFieldSelect");
           colorFieldSelect.disabled = true;
+          const typeFieldSelect = document.getElementById("typeFieldSelect");
+          typeFieldSelect.disabled = true;
           const colorNormalizationFieldSelect = document.getElementById("colorNormalizationFieldSelect");
           const colorThemeSelect = document.getElementById("colorThemeSelect");
           const statisticTypeSelect = document.getElementById("statisticTypeSelect");
           statisticTypeSelect.disabled = true;
-          const colorRingCheckbox = document.getElementById("color-ring");
-          const showRingCheckbox = document.getElementById("show-ring");
 
           await layer.load();
           const forBinning = layer.geometryType === "point";
 
           const numberFields = await getNumberFields(layer);
           const stringFields = await getStringFields(layer);
-          createFieldSelect(fieldSelect, numberFields);
-          createColorFieldSelect(colorFieldSelect, stringFields, forBinning);
 
           if(!forBinning){
-            createFieldSelect(normalizationFieldSelect, numberFields);
-            createFieldSelect(colorFieldSelect, numberFields);
-            createFieldSelect(colorNormalizationFieldSelect, numberFields);
+            createFieldSelect(fieldSelect, numberFields, false);
+            createFieldSelect(normalizationFieldSelect, numberFields, false);
+            createFieldSelect(colorFieldSelect, numberFields, false);
+            createFieldSelect(colorNormalizationFieldSelect, numberFields, false);
+            binLevelSlider.destroy();
+            binLevelSlider.container = null;
+          }
+
+          let aggregateFields = [
+            new AggregateField({
+              name: "aggregateCount",
+              alias: "Total count",
+              statisticType: "count"
+            })
+          ];
+
+          if(forBinning){
+            const aggregateCountOption = {
+              value: "aggregateCount",
+              label: "Total count"
+            };
+            updateFieldSelect(fieldSelect, aggregateCountOption);
+            createFieldSelect(fieldSelect, numberFields, false);
+            updateFieldSelect(normalizationFieldSelect, aggregateCountOption);
+            updateFieldSelect(colorFieldSelect, aggregateCountOption);
+            const aggregateStringFields = stringFields.map((field) => {
+              return createAggregateField(field.name, "mode");
+            });
+            aggregateFields.push(...aggregateStringFields);
+            createFieldSelect(typeFieldSelect, aggregateStringFields, true);
+            gridSizeSlider.destroy();
+            gridSizeSlider.container = null;
           }
 
           async function createFeatureReduction () {
-            const featureReduction = await createBins({ layer, view });
+            const featureReduction = await createBins({ layer, view, fields: aggregateFields });
             layer.featureReduction = featureReduction;
           }
 
@@ -1147,28 +1175,53 @@
 
           async function createRenderer () {
 
-            const forBinning = layer?.geometryType === "point";
-            if(forBinning && layer?.featureReduction?.type !== "binning"){
-              await createFeatureReduction();
+            const forBinning = layer.geometryType === "point";
+            if(forBinning){
+              if(layer?.featureReduction?.type !== "binning"){
+                await createFeatureReduction();
+              }
             }
 
-            fieldSelect.disabled = false;
-            normalizationFieldSelect.disabled = false;
-            colorFieldSelect.disabled = false;
-            statisticTypeSelect.disabled = false;
-            rendererStopsSelect.disabled = false;
+            statisticTypeSelect.disabled = !fieldSelect.value && !forBinning;
+            normalizationFieldSelect.disabled = !fieldSelect.value;
+            rendererStopsSelect.disabled = !fieldSelect.value;
+
+            typeFieldSelect.disabled = Boolean(colorFieldSelect.value);
+            colorThemeSelect.disabled = !Boolean(colorFieldSelect.value);
+            colorNormalizationFieldSelect.disabled = !Boolean(colorFieldSelect.value);
+            colorFieldSelect.disabled = Boolean(typeFieldSelect.value);
 
             field = forBinning ? getAggregateFieldName() : fieldSelect.value;
             normalizationField = normalizationFieldSelect.value;
-            // const gridSize = gridSizeSlider.values[0];
+            const gridSize = gridSizeSlider.values[0];
 
-            const renderer = await createWurmanDotRenderer({
+            const typeField = typeFieldSelect.value;
+            const vvField = colorFieldSelect.value;
+            const vvNormalizationField = colorNormalizationFieldSelect.value;
+            const theme = colorThemeSelect.value;
+
+            const {
+              renderer,
+              statistics,
+              isGrid
+            } = await createWurmanDotRenderer({
               layer,
               view,
               field,
               normalizationField,
               forBinning,
-              // gridSize
+              gridSize,
+              typeOptions: {
+                typeField,
+                numTypes: 10,
+                sortBy: "count",
+                sortEnabled: true
+              },
+              vvOptions: {
+                vvField,
+                vvNormalizationField,
+                theme
+              }
             });
 
             if(forBinning){
@@ -1178,27 +1231,29 @@
             } else {
               layer.renderer = renderer;
             }
+
+            updateSizeSlider(statistics);
+            gridSizeSlider.disabled = isGrid;
           }
 
           function getAggregateFieldName(){
             const stat = statisticTypeSelect.value;
-            const fieldName = fieldSelect.value;
+            const fieldName = fieldSelect.value || "aggregateCount";
             if(fieldName === "aggregateCount"){
               return fieldName;
             }
             return `${fieldName}_${stat}`;
           }
 
-          function getColorAggregateFieldName(isType){
+          function getColorAggregateFieldName(forBinning){
             const fieldName = colorFieldSelect.value;
             if(fieldName === "aggregateCount"){
               return fieldName;
             }
-            return isType ? `${fieldName}_mode` : fieldName;
+            return forBinning ? `${fieldName}_mode` : fieldName;
           }
 
           async function selectFieldHandler (event) {
-            const forBinning = layer.geometryType === "point";
             const fieldName = fieldSelect.value;
 
             if(forBinning && fieldName !== "aggregateCount"){
@@ -1211,17 +1266,23 @@
               updateAggregateFieldSelect(colorNormalizationFieldSelect, aggregateField);
             }
 
+            if(!fieldName){
+              normalizationFieldSelect.value = null;
+              colorFieldSelect.value = null;
+              colorNormalizationFieldSelect.value = null;
+              typeFieldSelect.value = null;
+            }
+
             await createRenderer();
           }
 
           fieldSelect.addEventListener("change", selectFieldHandler);
           statisticTypeSelect.addEventListener("change", selectFieldHandler);
           normalizationFieldSelect.addEventListener("change", createRenderer);
-          colorNormalizationFieldSelect.addEventListener("change", createRenderer);
+          colorNormalizationFieldSelect.addEventListener("change", async () => {
+            await createRenderer();
+          });
           rendererStopsSelect.addEventListener("change", createRenderer);
-
-          colorRingCheckbox.addEventListener("change", createRenderer);
-          showRingCheckbox.addEventListener("change", createRenderer);
 
           colorFieldSelect.addEventListener("change", async (event) => {
             const fieldName = colorFieldSelect.value;
@@ -1235,13 +1296,16 @@
               updateFeatureReductionFields(layer, aggregateField);
             }
 
-            // colorRingCheckbox.disabled = !modeOptionSelected;
-            colorNormalizationFieldSelect.disabled = !fieldName;
-            colorThemeSelect.disabled = !fieldName;
-
+            if(!fieldName){
+              colorNormalizationFieldSelect.value = null;
+            }
             await createRenderer();
           });
           colorThemeSelect.addEventListener("change", createRenderer);
+
+          typeFieldSelect.addEventListener("change", async (event) => {
+            await createRenderer();
+          });
 
           binLevelSlider.watch("values", ([value]) => {
             if(layer.featureReduction){
@@ -1291,13 +1355,13 @@
             return option;
           }
 
-          function createFieldSelect(select, fields){
+          function createFieldSelect(select, fields, forBinning){
 
             fields.forEach((field, i) => {
               const option = document.createElement("option");
               option.value = field.name;
-              option.label = `${field.type} - ${field.alias}`;
-              option.text = `${field.type} - ${field.alias}`;
+              option.label = `${forBinning ? field.statisticType : field.type} - ${field.alias}`;
+              option.text = `${forBinning ? field.statisticType : field.type} - ${field.alias}`;
 
               select.appendChild(option);
             });
@@ -1305,18 +1369,13 @@
             return select;
           }
 
-          function createColorFieldSelect(select, fields, forBinning){
-
-            fields.forEach((field, i) => {
-              const option = document.createElement("option");
-              option.value = field.name;
-              option.label = forBinning ? `Predominant value - ${field.alias}` : field.alias;
-              option.text = forBinning ? `Predominant value - ${field.alias}` : field.alias;
-
-              select.appendChild(option);
-            });
-
-            return select;
+          function updateFieldSelect(select, optionParams){
+            const { value, label } = optionParams;
+            const option = document.createElement("option");
+            option.value = value;
+            option.label = label;
+            option.text = label;
+            select.appendChild(option);
           }
 
           function createAggregateField(fieldName, stat){
@@ -1365,19 +1424,26 @@
     <div id="viewDiv"></div>
     <div id="infoDiv" class="esri-widget">
       <div id="smartMappingDiv" class="esri-widget">
-        <button id="createRendererBtn" class="esri-button">Create Wurman dots</button>
+        <button id="createRendererBtn" class="esri-button">Create Proportional Grid</button>
 
+        Grid resolution
         <!-- Bin size -->
         <div id="binLevelSlider"></div>
 
         <!-- Bin size -->
-        Grid resolution
         <div id="gridSizeSlider"></div>
 
         Size Field
         <div id="fieldSelectContainer">
           <select id="fieldSelect" class="esri-select">
-            <option value="aggregateCount" selected>Total Count</option>
+            <option value="" selected></option>
+          </select>
+        </div>
+
+        Size Normalization Field
+        <div id="normalizationFieldSelectContainer">
+          <select id="normalizationFieldSelect" class="esri-select">
+            <option value="" selected></option>
           </select>
         </div>
 
@@ -1389,7 +1455,7 @@
           <option value="max">max</option>
         </select>
 
-        Outer ring value
+        Maximum bound (full circle value/stat)
         <select id="rendererStopsSelect" class="esri-select">
           <option value="mean">mean</option>
           <option value="0.5-std-dev">1/2 std dev</option>
@@ -1398,11 +1464,10 @@
           <option value="max">max</option>
         </select>
 
-        Size Normalization Field
-        <div id="normalizationFieldSelectContainer">
-          <select id="normalizationFieldSelect" class="esri-select">
+        Type field
+        <div id="typeFieldSelectContainer">
+          <select id="typeFieldSelect" class="esri-select">
             <option value="" selected></option>
-            <option value="aggregateCount" >Total Count</option>
           </select>
         </div>
 
@@ -1410,7 +1475,6 @@
         <div id="colorFieldSelectContainer">
           <select id="colorFieldSelect" class="esri-select">
             <option value="" selected></option>
-            <option value="aggregateCount">Total Count</option>
           </select>
         </div>
 
@@ -1418,7 +1482,6 @@
         <div id="colorNormalizationFieldSelectContainer">
           <select id="colorNormalizationFieldSelect" class="esri-select" disabled>
             <option value="" selected></option>
-            <option value="aggregateCount" >Total Count</option>
           </select>
         </div>
 
@@ -1432,13 +1495,6 @@
             <option value="centered-on">Centered on</option>
             <option value="extremes">Extremes</option>
           </select>
-        </div>
-
-        <div>
-          <input type="checkbox" id="color-ring" checked> Apply color to ring?
-        </div>
-        <div>
-          <input type="checkbox" id="show-ring" checked> Show outer ring
         </div>
 
         <input
