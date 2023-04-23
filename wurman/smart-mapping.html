@@ -104,6 +104,7 @@
         "esri/smartMapping/renderers/color",
         "esri/smartMapping/renderers/type",
         "esri/layers/support/LabelClass",
+        "esri/geometry/geometryEngine",
         "esri/widgets/Legend",
         "esri/widgets/Expand",
         "esri/widgets/BasemapGallery",
@@ -126,6 +127,7 @@
         colorRendererCreator,
         typeRendererCreator,
         LabelClass,
+        geometryEngine,
         Legend,
         Expand,
         BasemapGallery,
@@ -357,6 +359,12 @@
             return featureReduction;
           }
 
+          function getStandardDeviation (array) {
+            const n = array.length
+            const mean = array.reduce((a, b) => a + b) / n
+            return Math.sqrt(array.map(x => Math.pow(x - mean, 2)).reduce((a, b) => a + b) / n)
+          }
+
           const rendererStopsSelect = document.getElementById("rendererStopsSelect");
           rendererStopsSelect.disabled = true;
 
@@ -540,6 +548,12 @@
               const layerGraphicsResponse = await layerView.queryFeatures();
               const binGraphics = layerGraphicsResponse.features;
 
+              const sizeRatios = binGraphics.map((feature) => {
+                const extent = feature?.geometry?.extent;
+                if(!extent){ return null }
+                return extent.width / extent.height;
+              });
+
               if(binGraphics.length === 0){
                 return 1;
               }
@@ -549,14 +563,20 @@
                 geometryType: "polygon"
               });
 
-              const { min, max, avg, stddev } = await summaryStatistics({
-                layer,
-                view,
-                valueExpression: "AreaGeodetic($feature, square-meters)"
-              });
+              // const { min, max, avg } = await summaryStatistics({
+              //   layer,
+              //   view,
+              //   valueExpression: "AreaGeodetic($feature, square-meters)",
+              //   useFeaturesInView: true
+              // });
+
+              const stddev = getStandardDeviation(sizeRatios);
+              const avgSizeRatios = Math.min(...sizeRatios);
 
               const threshold = 0.1;
-              const isGrid = (minSize > avgSize * (1 - threshold) || maxSize < avgSize * (1 + threshold));
+              const gridThreshold = 0.25;
+              // const isGrid = (minSize > avgSize * (1 - threshold) || maxSize < avgSize * (1 + threshold));
+              const isGrid = stddev < 0.1 && (avgSizeRatios > (1 - gridThreshold) && avgSizeRatios < (1 + gridThreshold));
               const binSize = isGrid ? avgSize * (1-threshold) : (2 * minSize);
               const binSizePixels = binSize / view.resolution;
 
