@@ -179,9 +179,6 @@
 
               setUrlParams(id, layerId, portal);
 
-              // Esri color ramps - Red Extremes 1
-              const colors = ["rgba(165, 50, 23, 1)", "rgba(165, 50, 23, 0.5)", "rgba(165, 50, 23, 0)", "rgba(165, 50, 23, 0.5)", "rgba(165, 50, 23, 1)"];
-
               layer = new FeatureLayer({
                 portalItem: {
                   id,
@@ -240,6 +237,8 @@
             }
 
             if(layer.geometryType === "polygon"){
+              // Esri color ramps - Red Extremes 1
+              const colors = ["rgba(165, 50, 23, 1)", "rgba(165, 50, 23, 0.5)", "rgba(165, 50, 23, 0)", "rgba(165, 50, 23, 0.5)", "rgba(165, 50, 23, 1)"];
               layer.renderer = {
                 type: "simple",
                 symbol: {
@@ -375,6 +374,7 @@
            * Creates default binning configuration for a point layer
            */
           async function createBins(params){
+
             const { view, layer, fields } = params;
 
             const fixedBinLevel = await binLevel({ view });
@@ -385,7 +385,13 @@
             const featureReduction = {
               type: "binning",
               fixedBinLevel,
-              fields,
+              fields: [
+                new AggregateField({
+                  name: "aggregateCount",
+                  alias: "Total count",
+                  statisticType: "count"
+                })
+              ],
               labelsVisible: false,
               popupEnabled: true,
               popupTemplate: {
@@ -1235,11 +1241,13 @@
           const numberFields = await getNumberFields(layer);
           const stringFields = await getStringFields(layer);
 
+          createFieldSelect(typeFieldSelect, stringFields);
+
           if(!forBinning){
-            createFieldSelect(fieldSelect, numberFields, false);
-            createFieldSelect(normalizationFieldSelect, numberFields, false);
-            createFieldSelect(colorFieldSelect, numberFields, false);
-            createFieldSelect(colorNormalizationFieldSelect, numberFields, false);
+            createFieldSelect(fieldSelect, numberFields);
+            createFieldSelect(normalizationFieldSelect, numberFields);
+            createFieldSelect(colorFieldSelect, numberFields);
+            createFieldSelect(colorNormalizationFieldSelect, numberFields);
             binLevelSlider.destroy();
             binLevelSlider.container = null;
           }
@@ -1261,14 +1269,9 @@
               ...aggregateCountOption,
               selected: true
             });
-            createFieldSelect(fieldSelect, numberFields, false);
+            createFieldSelect(fieldSelect, numberFields);
             updateFieldSelect(normalizationFieldSelect, aggregateCountOption);
             updateFieldSelect(colorFieldSelect, aggregateCountOption);
-            const aggregateStringFields = stringFields.map((field) => {
-              return createAggregateField(field.name, "mode");
-            });
-            aggregateFields.push(...aggregateStringFields);
-            createFieldSelect(typeFieldSelect, aggregateStringFields, true);
             gridSizeSlider.destroy();
             gridSizeSlider.container = null;
           }
@@ -1284,9 +1287,9 @@
               if(layer?.featureReduction?.type !== "binning"){
                 const featureReduction = await createFeatureReduction(aggregateFields);
                 layer.featureReduction = featureReduction;
-                await createRenderer();
               }
             }
+            await createRenderer();
           });
 
           async function createRenderer () {
@@ -1304,7 +1307,7 @@
             normalizationField = normalizationFieldSelect.value || null;
             const gridSize = gridSizeSlider.values[0] || null;
 
-            const typeField = typeFieldSelect.value || null;
+            const typeField = typeFieldSelect.value && forBinning ? typeFieldSelect.value + "_mode" : typeFieldSelect.value;
             const vvField = colorFieldSelect.value || null;
             const vvNormalizationField = colorNormalizationFieldSelect.value || null;
             const theme = colorThemeSelect.value || null;
@@ -1419,6 +1422,14 @@
           });
 
           typeFieldSelect.addEventListener("change", async (event) => {
+            const fieldName = typeFieldSelect.value;
+
+            if(forBinning && fieldName){
+              const stat = "mode";
+              const aggregateField = createAggregateField(fieldName, stat);
+              updateFeatureReductionFields(layer, aggregateField);
+            }
+
             await createRenderer();
           });
 
@@ -1470,13 +1481,13 @@
             return option;
           }
 
-          function createFieldSelect(select, fields, forBinning){
+          function createFieldSelect(select, fields){
 
             fields.forEach((field, i) => {
               const option = document.createElement("option");
               option.value = field.name;
-              option.label = `${forBinning ? field.statisticType : field.type} - ${field.alias}`;
-              option.text = `${forBinning ? field.statisticType : field.type} - ${field.alias}`;
+              option.label = `${field.type} - ${field.alias}`;
+              option.text = `${field.type} - ${field.alias}`;
 
               select.appendChild(option);
             });
