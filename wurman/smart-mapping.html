@@ -237,8 +237,10 @@
             }
 
             if(layer.geometryType === "polygon"){
-              // Esri color ramps - Red Extremes 1
-              const colors = ["rgba(165, 50, 23, 1)", "rgba(165, 50, 23, 0.5)", "rgba(165, 50, 23, 0)", "rgba(165, 50, 23, 0.5)", "rgba(165, 50, 23, 1)"];
+              // To emphasize irregular shapes.
+              // const colors = ["rgba(165, 50, 23, 1)", "rgba(165, 50, 23, 0.5)", "rgba(165, 50, 23, 0)", "rgba(165, 50, 23, 0.5)", "rgba(165, 50, 23, 1)"];
+              // To emphasize grid-like shapes.
+              const colors = ["rgba(165, 50, 23, 0)", "rgba(165, 50, 23, 0.5)", "rgba(165, 50, 23, 1)", "rgba(165, 50, 23, 0.5)", "rgba(165, 50, 23, 0)"];
               layer.renderer = {
                 type: "simple",
                 symbol: {
@@ -252,9 +254,12 @@
                   type: "color",
                   valueExpression: `
                     var e = Extent($feature);
-                    var w = e.xmax - e.xmin;
-                    var h = e.ymax - e.ymin;
-                    return w/h;
+                    if(!IsEmpty(e)){
+                      var w = e.xmax - e.xmin;
+                      var h = e.ymax - e.ymin;
+                      return w/h;
+                    }
+                    return null;
                   `,
                   stops: [
                     { value: 0.5, color: colors[0] },
@@ -863,9 +868,19 @@
               numBins: 60
             });
 
-            min = 0;
-            max = stats.max;
+            const defaultMin = 0;
+            const percentageMax = 100;
+            const percentageMin = 0;
+            const ratioMin = percentageMin;
+            const ratioMax = 1;
             const mean = stats.avg;
+            const min = stats.min;
+            const max = stats.max;
+            const cv = stats.stddev / mean;
+
+            const isRatio = min > ratioMin && min < ratioMax && max < ratioMax * 2 && cv < 0.5;
+            const isPercentage = min > percentageMin && min < percentageMax && max < percentageMax * 2 && cv < 0.5;
+
             const stddevHalf = stats.avg + (0.5 * stats.stddev);
             const stddev1 = stats.avg + stats.stddev;
             const stddev2 = stats.avg + (2 * stats.stddev);
@@ -878,8 +893,15 @@
               "max": max
             };
 
-            maxBound = maxBoundDictionary[rendererStopsSelect.value];
-            minBound = min;
+            maxBound =
+              isRatio ? ratioMax :
+              isPercentage ? percentageMax :
+              maxBoundDictionary[rendererStopsSelect.value];
+
+            minBound =
+              isRatio ? ratioMin :
+              isPercentage ? percentageMin :
+              min;
 
             const { primaryScheme } = await locationSymbology.getSchemes({
               basemap: view.map.basemap,
