@@ -179,6 +179,9 @@
 
               setUrlParams(id, layerId, portal);
 
+              // Esri color ramps - Red Extremes 1
+              const colors = ["rgba(165, 50, 23, 1)", "rgba(165, 50, 23, 0.5)", "rgba(165, 50, 23, 0)", "rgba(165, 50, 23, 0.5)", "rgba(165, 50, 23, 1)"];
+
               layer = new FeatureLayer({
                 portalItem: {
                   id,
@@ -186,7 +189,58 @@
                     url: portal
                   }
                 },
-                layerId
+                layerId,
+                labelingInfo: [{
+                  symbol: {
+                    type: "text", // autocasts as new TextSymbol()
+                    color: "white",
+                    haloColor: "rgba(50,50,50,0.3)",
+                    haloSize: 1,
+                    yoffset: 5,
+                    font: {
+                      // autocast as new Font()
+                      family: "Noto Sans",
+                      size: 12,
+                      weight: "bold"
+                    }
+                  },
+                  labelPlacement: "above-center",
+                  labelExpressionInfo: {
+                    expression: `
+                      var e = Extent($feature);
+                      var w = e.xmax - e.xmin;
+                      var h = e.ymax - e.ymin;
+                      return Text(w/h, "AR: #.##");// + "\\n" + Text(Sqrt(w*h), "Size: #.##");
+                    `
+                  }
+                }],
+                labelsVisible: false,
+                renderer: {
+                  type: "simple",
+                  symbol: {
+                    type: "simple-fill",
+                    outline: {
+                      width: 0.5,
+                      color: "rgba(255,255,255,0.4)"
+                    }
+                  },
+                  visualVariables: [{
+                    type: "color",
+                    valueExpression: `
+                      var e = Extent($feature);
+                      var w = e.xmax - e.xmin;
+                      var h = e.ymax - e.ymin;
+                      return w/h;
+                    `,
+                    stops: [
+                      { value: 0.5, color: colors[0] },
+                      { value: 0.75, color: colors[1] },
+                      { value: 1, color: colors[2] },
+                      { value: 1.25, color: colors[3] },
+                      { value: 1.5, color: colors[4] }
+                    ]
+                  }]
+                }
               });
             } else {
               portal = null;
@@ -360,9 +414,15 @@
           }
 
           function getStandardDeviation (array) {
-            const n = array.length
+            const n = array.length;
+            const mean = array.reduce((a, b) => a + b) / n;
+            return Math.sqrt(array.map(x => Math.pow(x - mean, 2)).reduce((a, b) => a + b) / n);
+          }
+
+          function getAverage (array) {
+            const n = array.length;
             const mean = array.reduce((a, b) => a + b) / n
-            return Math.sqrt(array.map(x => Math.pow(x - mean, 2)).reduce((a, b) => a + b) / n)
+            return mean;
           }
 
           const rendererStopsSelect = document.getElementById("rendererStopsSelect");
@@ -548,10 +608,16 @@
               const layerGraphicsResponse = await layerView.queryFeatures();
               const binGraphics = layerGraphicsResponse.features;
 
-              const sizeRatios = binGraphics.map((feature) => {
+              const aspectRatios = binGraphics.map((feature) => {
                 const extent = feature?.geometry?.extent;
                 if(!extent){ return null }
                 return extent.width / extent.height;
+              });
+
+              const sizes = binGraphics.map((feature) => {
+                const extent = feature?.geometry?.extent;
+                if(!extent){ return null }
+                return Math.sqrt(extent.width * extent.height);
               });
 
               if(binGraphics.length === 0){
@@ -563,21 +629,30 @@
                 geometryType: "polygon"
               });
 
-              // const { min, max, avg } = await summaryStatistics({
-              //   layer,
-              //   view,
-              //   valueExpression: "AreaGeodetic($feature, square-meters)",
-              //   useFeaturesInView: true
-              // });
+              const stddevAspectRatios = getStandardDeviation(aspectRatios);
+              const avgAspectRatios = getAverage(aspectRatios);
+              const stddevSizes = getStandardDeviation(sizes);
+              const coefficientVariation = stddevSizes / avgSize;
 
-              const stddev = getStandardDeviation(sizeRatios);
-              const avgSizeRatios = Math.min(...sizeRatios);
+              console.log("Aspect Ratio - μ: ", avgAspectRatios);
+              console.log("Aspect Ratio - σ: ", stddevAspectRatios);
+              // console.log("Size - min: ", minSize);
+              // console.log("Size - μ: ", avgSize);
+              // console.log("Size - σ: ", stddevSizes);
+              // console.log("Size - max: ", maxSize);
+              // console.log("Size - range: ", maxSize - minSize);
+              console.log("Size - coefficient of variation: ", coefficientVariation);
 
-              const threshold = 0.1;
-              const gridThreshold = 0.25;
-              // const isGrid = (minSize > avgSize * (1 - threshold) || maxSize < avgSize * (1 + threshold));
-              const isGrid = stddev < 0.1 && (avgSizeRatios > (1 - gridThreshold) && avgSizeRatios < (1 + gridThreshold));
-              const binSize = isGrid ? avgSize * (1-threshold) : (2 * minSize);
+              const sizeThreshold = 0.1;
+              const aspectRatioAvgThreshold = 0.25;
+              const aspectRatioStdDevThreshold = 0.1;
+              const coefficientVariationThreshold = 0.1;
+
+              const isGrid =
+                stddevAspectRatios < aspectRatioStdDevThreshold &&
+                (avgAspectRatios > (1 - aspectRatioAvgThreshold) && avgAspectRatios < (1 + aspectRatioAvgThreshold)) &&
+                coefficientVariation < coefficientVariationThreshold;
+              const binSize = isGrid ? avgSize * (1-sizeThreshold) : (2 * minSize);
               const binSizePixels = binSize / view.resolution;
 
               return {
@@ -1178,7 +1253,10 @@
               value: "aggregateCount",
               label: "Total count"
             };
-            updateFieldSelect(fieldSelect, aggregateCountOption);
+            updateFieldSelect(fieldSelect, {
+              ...aggregateCountOption,
+              selected: true
+            });
             createFieldSelect(fieldSelect, numberFields, false);
             updateFieldSelect(normalizationFieldSelect, aggregateCountOption);
             updateFieldSelect(colorFieldSelect, aggregateCountOption);
@@ -1193,20 +1271,20 @@
 
           async function createFeatureReduction () {
             const featureReduction = await createBins({ layer, view, fields: aggregateFields });
-            layer.featureReduction = featureReduction;
+            return featureReduction;
           }
 
           const createRendererBtn = document.getElementById("createRendererBtn");
-          createRendererBtn.addEventListener("click", createRenderer);
-
-          async function createRenderer () {
-
-            const forBinning = layer.geometryType === "point";
+          createRendererBtn.addEventListener("click", async () => {
             if(forBinning){
               if(layer?.featureReduction?.type !== "binning"){
-                await createFeatureReduction();
+                const featureReduction = await createFeatureReduction();
+                layer.featureReduction = featureReduction;
               }
             }
+          });
+
+          async function createRenderer () {
 
             statisticTypeSelect.disabled = !fieldSelect.value && !forBinning;
             normalizationFieldSelect.disabled = !fieldSelect.value;
@@ -1334,7 +1412,7 @@
           });
 
           binLevelSlider.watch("values", ([value]) => {
-            if(layer.featureReduction){
+            if(layer.featureReduction && layer.featureReduction.renderer){
               layer.featureReduction.fixedBinLevel = value;
               createRenderer();
             }
@@ -1396,11 +1474,12 @@
           }
 
           function updateFieldSelect(select, optionParams){
-            const { value, label } = optionParams;
+            const { value, label, selected } = optionParams;
             const option = document.createElement("option");
             option.value = value;
             option.label = label;
             option.text = label;
+            option.selected = Boolean(selected);
             select.appendChild(option);
           }
 
