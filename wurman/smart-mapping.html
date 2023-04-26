@@ -189,6 +189,7 @@
                     url: portal
                   }
                 },
+                // outFields: ["*"],
                 layerId,
                 labelingInfo: [{
                   symbol: {
@@ -214,33 +215,7 @@
                     `
                   }
                 }],
-                labelsVisible: false,
-                renderer: {
-                  type: "simple",
-                  symbol: {
-                    type: "simple-fill",
-                    outline: {
-                      width: 0.5,
-                      color: "rgba(255,255,255,0.4)"
-                    }
-                  },
-                  visualVariables: [{
-                    type: "color",
-                    valueExpression: `
-                      var e = Extent($feature);
-                      var w = e.xmax - e.xmin;
-                      var h = e.ymax - e.ymin;
-                      return w/h;
-                    `,
-                    stops: [
-                      { value: 0.5, color: colors[0] },
-                      { value: 0.75, color: colors[1] },
-                      { value: 1, color: colors[2] },
-                      { value: 1.25, color: colors[3] },
-                      { value: 1.5, color: colors[4] }
-                    ]
-                  }]
-                }
+                labelsVisible: false
               });
             } else {
               portal = null;
@@ -248,7 +223,8 @@
               layerId = null;
 
               layer = new FeatureLayer({
-                url
+                url,
+                // outFields: ["*"],
               });
             }
 
@@ -261,6 +237,35 @@
             if(layer.geometryType !== "point" && layer.geometryType !== "polygon"){
               alert("Only point or polygon layers are valid.");
               throw new Error("Only point layers are valid.");
+            }
+
+            if(layer.geometryType === "polygon"){
+              layer.renderer = {
+                type: "simple",
+                symbol: {
+                  type: "simple-fill",
+                  outline: {
+                    width: 0.5,
+                    color: "rgba(255,255,255,0.4)"
+                  }
+                },
+                visualVariables: [{
+                  type: "color",
+                  valueExpression: `
+                    var e = Extent($feature);
+                    var w = e.xmax - e.xmin;
+                    var h = e.ymax - e.ymin;
+                    return w/h;
+                  `,
+                  stops: [
+                    { value: 0.5, color: colors[0] },
+                    { value: 0.75, color: colors[1] },
+                    { value: 1, color: colors[2] },
+                    { value: 1.25, color: colors[3] },
+                    { value: 1.5, color: colors[4] }
+                  ]
+                }]
+              };
             }
 
             return layer;
@@ -407,6 +412,12 @@
                     }
                   }
                 ]
+              },
+              renderer: {
+                type: "simple",
+                symbol: {
+                  type: "simple-fill"
+                }
               }
             };
 
@@ -808,7 +819,7 @@
             return primitiveOverrides;
           }
 
-          async function createWurmanDotRenderer(params){
+          async function createProportionalGridRenderer(params){
             const {
               layer,
               view,
@@ -1308,7 +1319,7 @@
               renderer,
               statistics,
               isGrid
-            } = await createWurmanDotRenderer({
+            } = await createProportionalGridRenderer({
               layer,
               view,
               field,
@@ -1360,7 +1371,7 @@
           async function selectFieldHandler (event) {
             const fieldName = fieldSelect.value;
 
-            if(forBinning && fieldName !== "aggregateCount"){
+            if(forBinning && fieldName !== "aggregateCount" && fieldName){
               statisticTypeSelect.disabled = fieldName === "aggregateCount";
               const stat = statisticTypeSelect.value;
               const aggregateField = createAggregateField(fieldName, stat);
@@ -1382,11 +1393,15 @@
 
           fieldSelect.addEventListener("change", selectFieldHandler);
           statisticTypeSelect.addEventListener("change", selectFieldHandler);
-          normalizationFieldSelect.addEventListener("change", createRenderer);
+          normalizationFieldSelect.addEventListener("change", () => {
+            createRenderer();
+          });
           colorNormalizationFieldSelect.addEventListener("change", async () => {
             await createRenderer();
           });
-          rendererStopsSelect.addEventListener("change", createRenderer);
+          rendererStopsSelect.addEventListener("change", () => {
+            createRenderer();
+          });
 
           colorFieldSelect.addEventListener("change", async (event) => {
             const fieldName = colorFieldSelect.value;
@@ -1405,7 +1420,9 @@
             }
             await createRenderer();
           });
-          colorThemeSelect.addEventListener("change", createRenderer);
+          colorThemeSelect.addEventListener("change", () => {
+            createRenderer();
+          });
 
           typeFieldSelect.addEventListener("change", async (event) => {
             await createRenderer();
