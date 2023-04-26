@@ -55,10 +55,10 @@
       }
 
       .esri-size-slider .esri-slider .esri-slider__content {
-        height: 200px;
+        height: 175px;
       }
       .esri-color-slider .esri-slider .esri-slider__content {
-        height: 200px;
+        height: 175px;
       }
 
       #binLevelSlider{
@@ -1244,6 +1244,7 @@
             }
           }
 
+          const createRendererBtn = document.getElementById("createRendererBtn");
           const fieldSelect = document.getElementById("fieldSelect");
           fieldSelect.disabled = false;
           const normalizationFieldSelect = document.getElementById("normalizationFieldSelect");
@@ -1256,6 +1257,7 @@
           const colorThemeSelect = document.getElementById("colorThemeSelect");
           const statisticTypeSelect = document.getElementById("statisticTypeSelect");
           statisticTypeSelect.disabled = true;
+          const gridResolutionUI = document.getElementById("gridResolutionUI");
 
           await layer.load();
           const forBinning = layer.geometryType === "point";
@@ -1272,6 +1274,9 @@
             createFieldSelect(colorNormalizationFieldSelect, numberFields);
             binLevelSlider.destroy();
             binLevelSlider.container = null;
+            document.getElementById("statisticTypeUI").style.display = "none";
+            createRendererBtn.style.display = "none";
+            gridResolutionUI.style.display = "none";
           }
 
           let aggregateFields = [
@@ -1303,7 +1308,6 @@
             return featureReduction;
           }
 
-          const createRendererBtn = document.getElementById("createRendererBtn");
           createRendererBtn.addEventListener("click", async () => {
             if(forBinning){
               if(layer?.featureReduction?.type !== "binning"){
@@ -1368,6 +1372,9 @@
 
             updateSizeSlider(statistics);
             gridSizeSlider.disabled = isGrid;
+            if(!isGrid){
+              gridResolutionUI.style.display = "block";
+            }
           }
 
           function getAggregateFieldName(){
@@ -1575,12 +1582,14 @@
       <div id="smartMappingDiv" class="esri-widget">
         <button id="createRendererBtn" class="esri-button">Create Proportional Grid</button>
 
-        Grid resolution
-        <!-- Bin size -->
-        <div id="binLevelSlider"></div>
+        <div id="gridResolutionUI">
+          Grid resolution
+          <!-- Bin size -->
+          <div id="binLevelSlider"></div>
 
-        <!-- Bin size -->
-        <div id="gridSizeSlider"></div>
+          <!-- Bin size -->
+          <div id="gridSizeSlider"></div>
+        </div>
 
         Size Field
         <div id="fieldSelectContainer">
@@ -1596,13 +1605,15 @@
           </select>
         </div>
 
-        Statistic type
-        <select id="statisticTypeSelect" class="esri-select" disabled>
-          <option value="sum" selected>sum</option>
-          <option value="avg">avg</option>
-          <option value="min">min</option>
-          <option value="max">max</option>
-        </select>
+        <div id="statisticTypeUI">
+          Statistic type
+          <select id="statisticTypeSelect" class="esri-select" disabled>
+            <option value="sum" selected>sum</option>
+            <option value="avg">avg</option>
+            <option value="min">min</option>
+            <option value="max">max</option>
+          </select>
+        </div>
 
         Maximum bound (full circle value/stat)
         <select id="rendererStopsSelect" class="esri-select">
