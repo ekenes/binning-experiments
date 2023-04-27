@@ -812,14 +812,14 @@
               const stepXOverride = {
                 type: "CIMPrimitiveOverride",
                 primitiveName: "stepXY",
-                propertyName: "stepX",
+                propertyName: "StepX",
                 valueExpressionInfo: outerRingExpressionInfo
               };
 
               const stepYOverride = {
                 type: "CIMPrimitiveOverride",
                 primitiveName: "stepXY",
-                propertyName: "stepY",
+                propertyName: "StepY",
                 valueExpressionInfo: outerRingExpressionInfo
               };
 
@@ -995,7 +995,7 @@
                 data: {
                   type: "CIMSymbolReference",
                   symbol: {
-                    type: "CIMPointSymbol",
+                    type: isGrid ? "CIMPointSymbol" : "CIMPolygonSymbol",
                     symbolLayers: [
                       {
                         type: "CIMVectorMarker",
