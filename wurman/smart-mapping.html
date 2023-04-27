@@ -31,6 +31,7 @@
       .description {
         background-color: white;
         padding: 10px;
+        text-align: center;
       }
       .title {
         background-color: inherit;
@@ -85,9 +86,13 @@
         visibility: hidden;
       }
 
+      h2{
+        text-align: center;
+      }
+
     </style>
 
-    <script src="https://jsdev.arcgis.com/next/"></script>
+    <script src="https://jsdev.arcgis.com/4.26/"></script>
 
     <script type="text/javascript">
       require([
@@ -910,7 +915,7 @@
 
             const fillColor = primaryScheme.color;
             const ringColor = primaryScheme.color.clone();
-            ringColor.a = 0.4;
+            ringColor.a = 0.75;
 
             const getBinSizePixelsResult = await getBinSizePixels({ view, layer, forBinning });
             binSizePixels = getBinSizePixelsResult.binSizePixels;
@@ -1580,10 +1585,11 @@
     <div id="viewDiv"></div>
     <div id="infoDiv" class="esri-widget">
       <div id="smartMappingDiv" class="esri-widget">
+        <h2>Proportional grid</h2>
         <button id="createRendererBtn" class="esri-button">Create Proportional Grid</button>
 
         <div id="gridResolutionUI">
-          Grid resolution
+          <div class="description">Grid resolution</div>
           <!-- Bin size -->
           <div id="binLevelSlider"></div>
 
