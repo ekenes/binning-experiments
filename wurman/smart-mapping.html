@@ -479,11 +479,12 @@
                 const maxBound = sizeSlider.stops[1].value;
                 const forBinning = Boolean(layer.featureReduction);
                 const gridSize = gridSizeSlider.values[0];
+                const markerPatternEnabled = markerCheckbox.checked;
 
                 const renderer = await updateWurmanDotRenderer({
                   min, max, minBound, maxBound, gridSize
                 }, {
-                  view, layer, field, normalizationField, forBinning
+                  view, layer, field, normalizationField, forBinning, markerPatternEnabled
                 });
 
                 if(forBinning){
@@ -600,7 +601,7 @@
           }
 
           async function getBinSizePixels(params){
-            const { layer, view, forBinning } = params;
+            const { layer, view, forBinning, markerPatternEnabled } = params;
             const layerView = await view.whenLayerView(layer);
 
             if(forBinning){
@@ -666,25 +667,28 @@
 
               const sizeThreshold = 0.1;
               const aspectRatioAvgThreshold = 0.25;
-              const aspectRatioStdDevThreshold = 0.1;
+              const aspectRatioStdDevThreshold = 0.1;  // 0.25
               const coefficientVariationThreshold = 0.1;
 
               const isGrid =
-                stddevAspectRatios < aspectRatioStdDevThreshold &&
+                ( stddevAspectRatios < aspectRatioStdDevThreshold &&
                 (avgAspectRatios > (1 - aspectRatioAvgThreshold) && avgAspectRatios < (1 + aspectRatioAvgThreshold)) &&
-                coefficientVariation < coefficientVariationThreshold;
-              const binSize = isGrid ? avgSize * (1-sizeThreshold) : (2 * minSize);
+                coefficientVariation < coefficientVariationThreshold );
+              const binSize =
+                isGrid ? avgSize * (1-sizeThreshold) :
+                !markerPatternEnabled ? avgSize * 0.25 :
+                (2 * minSize);
               const binSizePixels = binSize / view.resolution;
 
               return {
                 binSizePixels,
-                isGrid
+                isGrid: isGrid
               };
             }
           }
 
           function getPrimitiveOverrides(rendererParams, stats){
-            const { view, field, normalizationField, typeOptions, gridSize } = rendererParams;
+            const { view, field, normalizationField, typeOptions, gridSize, markerPatternEnabled } = rendererParams;
             const gridSizePixels = gridSize || 20;
             const { minBound, maxBound, binSizePixels, isGrid } = stats;
 
@@ -713,7 +717,7 @@
               expression: isGrid ? `
                 var binWidthPixels = ${binSizePixels};
                 return (binWidthPixels * (${view.scale} / $view.scale)) * 0.75;
-              ` : `${gridSizePixels} * 0.75`,
+              ` : `${!markerPatternEnabled ? binSizePixels : gridSizePixels} * 0.75`,
               returnType: "Default"
             };
 
@@ -759,7 +763,7 @@
                     var ratio = ( value - minBound) / (maxBound - minBound);
 
                     var innerRatio = Constrain(ratio, 0, 1);
-                    var outerSize = ${gridSizePixels} * 0.75;
+                    var outerSize = ${!markerPatternEnabled ? binSizePixels : gridSizePixels} * 0.75;
                     // 0 is what the minSize could be if provided in UI
                     var innerSize = (outerSize * innerRatio) + 0;
                     // pixel to point conversion
@@ -808,7 +812,7 @@
               primitiveOverrides.push(innerDotColorOverride);
             }
 
-            if(!isGrid){
+            if(!isGrid && markerPatternEnabled){
               const stepXOverride = {
                 type: "CIMPrimitiveOverride",
                 primitiveName: "stepXY",
@@ -837,6 +841,7 @@
               normalizationField,
               minValue,
               maxValue,
+              markerPatternEnabled,
               typeOptions,
               vvOptions,
               gridSize,
@@ -917,7 +922,7 @@
             const ringColor = primaryScheme.color.clone();
             ringColor.a = 0.75;
 
-            const getBinSizePixelsResult = await getBinSizePixels({ view, layer, forBinning });
+            const getBinSizePixelsResult = await getBinSizePixels({ view, layer, forBinning, markerPatternEnabled });
             binSizePixels = getBinSizePixelsResult.binSizePixels;
             isGrid = getBinSizePixelsResult.isGrid;
 
@@ -971,12 +976,13 @@
                 typeField,
                 uniqueValueInfos
               },
-              gridSize
+              gridSize,
+              markerPatternEnabled
             }, {
               minBound, maxBound, binSizePixels, isGrid
             });
 
-            const markerPlacement = isGrid ? null : {
+            const markerPlacement = !isGrid && markerPatternEnabled ? {
               primitiveName: "stepXY",
               type: "CIMMarkerPlacementInsidePolygon",
               gridType: "Fixed",
@@ -985,7 +991,7 @@
               stepX: gridSize,
               stepY: gridSize,
               clipping: "DoNotClip"
-            };
+            } : null;
 
             const renderer = {
               type: "simple",
@@ -1167,13 +1173,13 @@
 
           async function updateWurmanDotRenderer(updatedValues, rendererParams){
             const { min, max, minBound, maxBound, gridSize  } = updatedValues;
-            const { view, layer, field, normalizationField, forBinning }  = rendererParams;
+            const { view, layer, field, normalizationField, forBinning, markerPatternEnabled }  = rendererParams;
             const renderer = forBinning ? layer.featureReduction?.renderer.clone() : layer.renderer.clone();
 
-            const { binSizePixels, isGrid } = await getBinSizePixels({ view, layer, forBinning });
+            const { binSizePixels, isGrid } = await getBinSizePixels({ view, layer, forBinning, markerPatternEnabled });
 
             const primitiveOverrides = getPrimitiveOverrides({
-              view, field, normalizationField, gridSize
+              view, field, normalizationField, gridSize, markerPatternEnabled
             }, {
               minBound, maxBound, binSizePixels, isGrid
             });
@@ -1250,6 +1256,9 @@
           }
 
           const createRendererBtn = document.getElementById("createRendererBtn");
+          const markerCheckbox = document.getElementById("createMarkerPattern");
+          const markerCheckboxContainer = document.getElementById("markerCheckboxContainer");
+          markerCheckboxContainer.style.display = "none";
           const fieldSelect = document.getElementById("fieldSelect");
           fieldSelect.disabled = false;
           const normalizationFieldSelect = document.getElementById("normalizationFieldSelect");
@@ -1263,6 +1272,7 @@
           const statisticTypeSelect = document.getElementById("statisticTypeSelect");
           statisticTypeSelect.disabled = true;
           const gridResolutionUI = document.getElementById("gridResolutionUI");
+          gridResolutionUI.style.display = "none";
 
           await layer.load();
           const forBinning = layer.geometryType === "point";
@@ -1323,6 +1333,13 @@
             await createRenderer();
           });
 
+          markerCheckbox.addEventListener("change", async () => {
+            gridResolutionUI.style.display = markerCheckbox.checked ? "block" : "none";
+            if(fieldSelect.value){
+              createRenderer();
+            }
+          });
+
           async function createRenderer () {
 
             statisticTypeSelect.disabled = !fieldSelect.value && !forBinning;
@@ -1334,9 +1351,11 @@
             colorNormalizationFieldSelect.disabled = !Boolean(colorFieldSelect.value);
             colorFieldSelect.disabled = Boolean(typeFieldSelect.value);
 
+            const markerPatternEnabled = markerCheckbox.checked;
+
             field = forBinning ? getAggregateFieldName() : fieldSelect.value;
             normalizationField = normalizationFieldSelect.value || null;
-            const gridSize = gridSizeSlider.values[0] || null;
+            const gridSize = markerPatternEnabled ? gridSizeSlider.values[0] : null;
 
             const typeField = typeFieldSelect.value && forBinning ? typeFieldSelect.value + "_mode" : typeFieldSelect.value;
             const vvField = colorFieldSelect.value || null;
@@ -1354,6 +1373,7 @@
               normalizationField,
               forBinning,
               gridSize,
+              markerPatternEnabled,
               typeOptions: {
                 typeField,
                 numTypes: 10,
@@ -1368,6 +1388,8 @@
             });
 
             if(forBinning){
+              gridResolutionUI.style.display = "block";
+              markerCheckboxContainer.style.display = "none";
               const featureReduction = layer.featureReduction.clone();
               featureReduction.renderer = renderer;
               layer.featureReduction = featureReduction;
@@ -1377,8 +1399,12 @@
 
             updateSizeSlider(statistics);
             gridSizeSlider.disabled = isGrid;
-            if(!isGrid){
+            if(!isGrid && markerPatternEnabled){
               gridResolutionUI.style.display = "block";
+              markerCheckboxContainer.style.display = "block";
+            }
+            if(isGrid){
+              markerCheckboxContainer.style.display = "none";
             }
           }
 
@@ -1479,11 +1505,12 @@
             const maxBound = sizeSlider.stops[1].value;
             const forBinning = Boolean(layer.featureReduction);
             const gridSize = value;
+            const markerPatternEnabled = markerCheckbox.checked;
 
             const renderer = await updateWurmanDotRenderer({
               min, max, minBound, maxBound, gridSize
             }, {
-              view, layer, field, normalizationField, forBinning
+              view, layer, field, normalizationField, forBinning, markerPatternEnabled
             });
 
             layer.renderer = renderer;
@@ -1587,6 +1614,10 @@
       <div id="smartMappingDiv" class="esri-widget">
         <h2>Proportional grid</h2>
         <button id="createRendererBtn" class="esri-button">Create Proportional Grid</button>
+
+        <div id="markerCheckboxContainer">
+          <input id="createMarkerPattern" type="checkbox" class="esri-checkbox" checked> Create marker pattern fill
+        </div>
 
         <div id="gridResolutionUI">
           <div class="description">Grid resolution</div>
