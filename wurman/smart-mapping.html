@@ -699,6 +699,9 @@
             } else {
               value = `$feature.${field}`;
               fields = `
+                if(!HasKey($feature, "${field}")){
+                  return null;
+                }
                 $feature.${field};
               `;
             }
@@ -706,6 +709,9 @@
             if(normalizationField){
               value = `$feature.${field} / $feature.${normalizationField}`;
               fields = `
+                if(!HasKey($feature, "${field}") || !HasKey($feature, "${normalizationField}")){
+                  return null;
+                }
                 $feature.${field};
                 $feature.${normalizationField};
               `;
