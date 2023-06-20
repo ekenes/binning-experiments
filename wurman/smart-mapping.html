@@ -296,7 +296,7 @@
 
           await view.when(async () => {
             await layer.load();
-            const title = layer.title + " (Proportional Grid)";
+            const title = layer.title + " (Bounded Size)";
             const save = document.getElementById("saveWebMap");
             save.disabled = false;
             save.addEventListener("click", () => {
@@ -1618,8 +1618,8 @@
     <div id="viewDiv"></div>
     <div id="infoDiv" class="esri-widget">
       <div id="smartMappingDiv" class="esri-widget">
-        <h2>Proportional grid</h2>
-        <button id="createRendererBtn" class="esri-button">Create Proportional Grid</button>
+        <h2>Bounded Size</h2>
+        <button id="createRendererBtn" class="esri-button">Enable binning</button>
 
         <div id="markerCheckboxContainer">
           <input id="createMarkerPattern" type="checkbox" class="esri-checkbox" checked> Create marker pattern fill
