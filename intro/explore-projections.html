@@ -11,7 +11,7 @@
 
     <link
       rel="stylesheet"
-      href="https://js.arcgis.com/4.25/esri/themes/light/main.css"
+      href="https://js.arcgis.com/4.27/esri/themes/light/main.css"
     />
 
     <style>
@@ -32,6 +32,7 @@
       require([
         "esri/WebMap",
         "esri/layers/FeatureLayer",
+        "esri/layers/GroupLayer",
         "esri/views/MapView",
         "esri/widgets/Legend",
         "esri/widgets/Expand",
@@ -39,7 +40,7 @@
         "esri/portal/Portal",
         "esri/widgets/BasemapGallery",
         "esri/widgets/BasemapGallery/support/PortalBasemapsSource"
-      ], (WebMap, FeatureLayer, MapView, Legend, Expand,
+      ], (WebMap, FeatureLayer, GroupLayer, MapView, Legend, Expand,
         Portal,
         BasemapGallery,
         PortalBasemapsSource) => {
@@ -126,7 +127,7 @@
               id: "38189d7d668c490895ed15fddcfdc7c7"
             }
           },
-          layers: [layer]
+          // layers: [layer]
         });
 
         const view = new MapView({
@@ -149,9 +150,42 @@
           scale: 112860000
         });
 
+
+
+        async function blendLayers () {
+          const basemap = view.map.basemap.clone();
+
+          const baseLayers = basemap.baseLayers.toArray();
+
+          const countriesLayer = new FeatureLayer({
+            portalItem: {
+              id: "2b93b06dc0dc4e809d3c8db5cb96ba69"
+            },
+            blendMode: "destination-atop"
+          });
+
+          const groupBaseLayer = new GroupLayer({
+            layers: [
+              new GroupLayer({
+                layers: baseLayers
+              }),
+              countriesLayer
+            ]
+          });
+
+          view.map.layers = [layer, groupBaseLayer];
+
+          console.log(view.map.layers);
+          view.map.basemap.baseLayers = [];
+        }
+
+        view.when().then(blendLayers);
+
         view.watch("scale", (scale) => {
           console.log(scale);
-        })
+        });
+
+        map.watch("basemap", blendLayers);
 
         const legendExpand = new Expand({
           view: view,
