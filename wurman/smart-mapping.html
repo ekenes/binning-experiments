@@ -90,6 +90,11 @@
         text-align: center;
       }
 
+      .explanation {
+        font-size: x-small;
+        margin: 1px;
+      }
+
     </style>
 
     <script src="https://js.arcgis.com/4.27/"></script>
@@ -449,6 +454,9 @@
           const rendererStopsSelect = document.getElementById("rendererStopsSelect");
           rendererStopsSelect.disabled = true;
 
+          const referenceSizeStatsSelect = document.getElementById("referenceSizeStats");
+          let referenceSizeDataValue = null;
+
           let sizeSlider = null;
           let colorSlider = null;
 
@@ -480,9 +488,11 @@
                 const forBinning = Boolean(layer.featureReduction);
                 const gridSize = gridSizeSlider.values[0];
                 const markerPatternEnabled = markerCheckbox.checked;
+                const referenceStat = referenceSizeStatsSelect.value;
+                const referenceDataValue = referenceSizeDataValue;
 
                 const renderer = await updateWurmanDotRenderer({
-                  min, max, minBound, maxBound, gridSize
+                  min, max, minBound, maxBound, gridSize, referenceDataValue
                 }, {
                   view, layer, field, normalizationField, forBinning, markerPatternEnabled
                 });
@@ -690,7 +700,7 @@
           function getPrimitiveOverrides(rendererParams, stats){
             const { view, field, normalizationField, typeOptions, gridSize, markerPatternEnabled } = rendererParams;
             const gridSizePixels = gridSize || 20;
-            const { minBound, maxBound, binSizePixels, isGrid } = stats;
+            const { minBound, maxBound, binSizePixels, isGrid, referenceDataValue } = stats;
 
             let value;
             let fields;
@@ -721,8 +731,15 @@
               type: "CIMExpressionInfo",
               title: "Size in pixels of outer ring at maxScale",
               expression: isGrid ? `
+                var value = ${referenceDataValue};
                 var binWidthPixels = ${binSizePixels};
-                return (binWidthPixels * (${view.scale} / $view.scale)) * 0.75;
+
+                var minBound = ${minBound};
+                var maxBound = ${maxBound};
+                var ratio = ( value - minBound) / (maxBound - minBound);
+                var referenceRatio = Constrain(ratio, 0, 1);
+
+                return (binWidthPixels * referenceRatio * (${view.scale} / $view.scale)) * 0.75;
               ` : `${!markerPatternEnabled ? binSizePixels : gridSizePixels} * 0.75`,
               returnType: "Default"
             };
@@ -839,6 +856,436 @@
             return primitiveOverrides;
           }
 
+          function createSymbolGeometry(type){
+            const circle = {
+              rings: [
+                [
+                  [8.5, 0.2],
+                  [7.06, 0.33],
+                  [5.66, 0.7],
+                  [4.35, 1.31],
+                  [3.16, 2.14],
+                  [2.14, 3.16],
+                  [1.31, 4.35],
+                  [0.7, 5.66],
+                  [0.33, 7.06],
+                  [0.2, 8.5],
+                  [0.33, 9.94],
+                  [0.7, 11.34],
+                  [1.31, 12.65],
+                  [2.14, 13.84],
+                  [3.16, 14.86],
+                  [4.35, 15.69],
+                  [5.66, 16.3],
+                  [7.06, 16.67],
+                  [8.5, 16.8],
+                  [9.94, 16.67],
+                  [11.34, 16.3],
+                  [12.65, 15.69],
+                  [13.84, 14.86],
+                  [14.86, 13.84],
+                  [15.69, 12.65],
+                  [16.3, 11.34],
+                  [16.67, 9.94],
+                  [16.8, 8.5],
+                  [16.67, 7.06],
+                  [16.3, 5.66],
+                  [15.69, 4.35],
+                  [14.86, 3.16],
+                  [13.84, 2.14],
+                  [12.65, 1.31],
+                  [11.34, 0.7],
+                  [9.94, 0.33],
+                  [8.5, 0.2]
+                ]
+              ]
+            };
+
+            const square = {
+              rings: [
+                [
+                  [0.5, 0.5],
+                  [0.5, 16.5],
+                  [16.5, 16.5],
+                  [16.5, 0.5],
+                  [0.5, 0.5]
+                ]
+              ]
+            };
+
+            const triangle = {
+              rings: [
+                [
+                  [0.5, 0.5],
+                  [8.5, 16.5],
+                  [16.5, 0.5],
+                  [0.5, 0.5]
+                ]
+              ]
+            };
+
+            const diamond = {
+              rings: [
+                [
+                  [
+                    13.35,
+                    8.48
+                  ],
+                  [
+                    8.5,
+                    0
+                  ],
+                  [
+                    3.65,
+                    8.48
+                  ],
+                  [
+                    8.5,
+                    17
+                  ],
+                  [
+                    13.35,
+                    8.48
+                  ]
+                ]
+              ]
+            };
+
+            const hexagon = {
+              "rings": [
+                [
+                  [
+                    12.75,
+                    15.86
+                  ],
+                  [
+                    17,
+                    8.5
+                  ],
+                  [
+                    12.75,
+                    1.14
+                  ],
+                  [
+                    4.25,
+                    1.14
+                  ],
+                  [
+                    0,
+                    8.5
+                  ],
+                  [
+                    4.25,
+                    15.86
+                  ],
+                  [
+                    12.75,
+                    15.86
+                  ]
+                ]
+              ]
+            };
+
+            const pentagon = {
+              "rings": [
+                [
+                  [
+                    17,
+                    10.01
+                  ],
+                  [
+                    13.75,
+                    0
+                  ],
+                  [
+                    3.25,
+                    0
+                  ],
+                  [
+                    0,
+                    10.01
+                  ],
+                  [
+                    8.49,
+                    16.19
+                  ],
+                  [
+                    17,
+                    10.01
+                  ]
+                ]
+              ]
+            };
+
+            const star = {
+              "rings": [
+                [
+                  [
+                    17,
+                    10.89
+                  ],
+                  [
+                    11.77,
+                    6.79
+                  ],
+                  [
+                    13.85,
+                    0.34
+                  ],
+                  [
+                    8.38,
+                    4.35
+                  ],
+                  [
+                    3.12,
+                    0.4
+                  ],
+                  [
+                    5.17,
+                    6.79
+                  ],
+                  [
+                    0,
+                    10.89
+                  ],
+                  [
+                    6.45,
+                    10.89
+                  ],
+                  [
+                    8.38,
+                    16.66
+                  ],
+                  [
+                    10.31,
+                    10.89
+                  ],
+                  [
+                    17,
+                    10.89
+                  ]
+                ]
+              ]
+            };
+
+
+            const heptagon = {
+              rings: [
+                  [
+                      [
+                          8.27,
+                          16.94
+                      ],
+                      [
+                          8.33,
+                          16.98
+                      ],
+                      [
+                          8.41,
+                          17
+                      ],
+                      [
+                          8.5,
+                          17
+                      ],
+                      [
+                          8.58,
+                          17
+                      ],
+                      [
+                          8.67,
+                          16.98
+                      ],
+                      [
+                          8.73,
+                          16.94
+                      ],
+                      [
+                          15.13,
+                          13.79
+                      ],
+                      [
+                          15.41,
+                          13.43
+                      ],
+                      [
+                          16.98,
+                          6.33
+                      ],
+                      [
+                          17,
+                          6.25
+                      ],
+                      [
+                          17,
+                          6.18
+                      ],
+                      [
+                          16.98,
+                          6.1
+                      ],
+                      [
+                          16.96,
+                          6.03
+                      ],
+                      [
+                          16.94,
+                          5.95
+                      ],
+                      [
+                          16.89,
+                          5.89
+                      ],
+                      [
+                          12.47,
+                          0.21
+                      ],
+                      [
+                          12.05,
+                          0
+                      ],
+                      [
+                          4.95,
+                          0
+                      ],
+                      [
+                          4.87,
+                          0
+                      ],
+                      [
+                          4.8,
+                          0.02
+                      ],
+                      [
+                          4.72,
+                          0.06
+                      ],
+                      [
+                          4.65,
+                          0.09
+                      ],
+                      [
+                          4.59,
+                          0.15
+                      ],
+                      [
+                          4.53,
+                          0.21
+                      ],
+                      [
+                          0.11,
+                          5.89
+                      ],
+                      [
+                          0.02,
+                          6.33
+                      ],
+                      [
+                          1.59,
+                          13.43
+                      ],
+                      [
+                          1.62,
+                          13.49
+                      ],
+                      [
+                          1.66,
+                          13.58
+                      ],
+                      [
+                          1.7,
+                          13.64
+                      ],
+                      [
+                          1.74,
+                          13.71
+                      ],
+                      [
+                          1.81,
+                          13.75
+                      ],
+                      [
+                          1.87,
+                          13.79
+                      ],
+                      [
+                          8.27,
+                          16.94
+                      ],
+                      [
+                          8.27,
+                          16.94
+                      ]
+                  ]
+                ]
+              };
+
+            const decagon = {
+              "rings": [
+                  [
+                      [
+                          11.12,
+                          0.04
+                      ],
+                      [
+                          15.34,
+                          3.12
+                      ],
+                      [
+                          16.96,
+                          8.09
+                      ],
+                      [
+                          15.34,
+                          13.06
+                      ],
+                      [
+                          11.12,
+                          16.14
+                      ],
+                      [
+                          5.88,
+                          16.14
+                      ],
+                      [
+                          1.66,
+                          13.06
+                      ],
+                      [
+                          0.04,
+                          8.09
+                      ],
+                      [
+                          1.66,
+                          3.12
+                      ],
+                      [
+                          5.88,
+                          0.04
+                      ],
+                      [
+                          11.12,
+                          0.04
+                      ]
+                  ]
+              ]
+          };
+
+            const shapeMap = {
+              circle,
+              square,
+              triangle,
+              diamond,
+              hexagon,
+              pentagon,
+              star,
+              heptagon,
+              decagon
+            };
+
+            return shapeMap[type];
+          }
+
           async function createProportionalGridRenderer(params){
             const {
               layer,
@@ -848,9 +1295,11 @@
               minValue,
               maxValue,
               markerPatternEnabled,
+              referenceStat,
               typeOptions,
               vvOptions,
               gridSize,
+              shape,
               forBinning
             } = params;
 
@@ -902,12 +1351,16 @@
             const stddev2 = stats.avg + (2 * stats.stddev);
 
             const maxBoundDictionary = {
+              "min": min,
               "mean": mean,
               "0.5-std-dev": stddevHalf,
               "1-std-dev": stddev1,
               "2-std-dev": stddev2,
               "max": max
             };
+
+            const referenceDataValue = maxBoundDictionary[referenceStat];
+            referenceSizeDataValue = referenceDataValue;
 
             maxBound =
               isRatio ? ratioMax :
@@ -985,7 +1438,7 @@
               gridSize,
               markerPatternEnabled
             }, {
-              minBound, maxBound, binSizePixels, isGrid
+              minBound, maxBound, binSizePixels, isGrid, referenceDataValue
             });
 
             const markerPlacement = !isGrid && markerPatternEnabled ? {
@@ -1012,6 +1465,39 @@
                       {
                         type: "CIMVectorMarker",
                         enable: true,
+                        colorLocked: false,
+                        anchorPoint: { x: 0, y: 0 },
+                        anchorPointUnits: "Relative",
+                        primitiveName: "outerRing",
+                        frame: { xmin: 0.0, ymin: 0.0, xmax: 17.0, ymax: 17.0 },
+                        markerGraphics: [
+                          {
+                            type: "CIMMarkerGraphic",
+                            geometry: createSymbolGeometry(shape),
+                            symbol: {
+                              type: "CIMPolygonSymbol",
+                              symbolLayers: [
+                                {
+                                  type: "CIMSolidFill",
+                                  enable: true,
+                                  color: [255,128,0,255],// ringColor.toJSON(),
+                                  primitiveName: "symbolFill",
+                                  effects: [{
+                                    type: "CIMGeometricEffectDonut",
+                                    width: 0.75
+                                  }]
+                                }
+                              ]
+                            }
+                          }
+                        ],
+                        scaleSymbolsProportionally: false,
+                        respectFrame: true,
+                        markerPlacement
+                      },
+                      {
+                        type: "CIMVectorMarker",
+                        enable: true,
                         anchorPoint: { x: 0, y: 0 },
                         anchorPointUnits: "Relative",
                         primitiveName: "innerDot",
@@ -1019,49 +1505,7 @@
                         markerGraphics: [
                           {
                             type: "CIMMarkerGraphic",
-                            geometry: {
-                              rings: [
-                                [
-                                  [8.5, 0.2],
-                                  [7.06, 0.33],
-                                  [5.66, 0.7],
-                                  [4.35, 1.31],
-                                  [3.16, 2.14],
-                                  [2.14, 3.16],
-                                  [1.31, 4.35],
-                                  [0.7, 5.66],
-                                  [0.33, 7.06],
-                                  [0.2, 8.5],
-                                  [0.33, 9.94],
-                                  [0.7, 11.34],
-                                  [1.31, 12.65],
-                                  [2.14, 13.84],
-                                  [3.16, 14.86],
-                                  [4.35, 15.69],
-                                  [5.66, 16.3],
-                                  [7.06, 16.67],
-                                  [8.5, 16.8],
-                                  [9.94, 16.67],
-                                  [11.34, 16.3],
-                                  [12.65, 15.69],
-                                  [13.84, 14.86],
-                                  [14.86, 13.84],
-                                  [15.69, 12.65],
-                                  [16.3, 11.34],
-                                  [16.67, 9.94],
-                                  [16.8, 8.5],
-                                  [16.67, 7.06],
-                                  [16.3, 5.66],
-                                  [15.69, 4.35],
-                                  [14.86, 3.16],
-                                  [13.84, 2.14],
-                                  [12.65, 1.31],
-                                  [11.34, 0.7],
-                                  [9.94, 0.33],
-                                  [8.5, 0.2]
-                                ]
-                              ]
-                            },
+                            geometry: createSymbolGeometry(shape),
                             symbol: {
                               type: "CIMPolygonSymbol",
                               symbolLayers: [
@@ -1076,81 +1520,6 @@
                           }
                         ],
                         scaleSymbolsProportionally: true,
-                        respectFrame: true,
-                        markerPlacement
-                      },
-                      {
-                        type: "CIMVectorMarker",
-                        enable: true,
-                        colorLocked: false,
-                        anchorPoint: { x: 0, y: 0 },
-                        anchorPointUnits: "Relative",
-                        primitiveName: "outerRing",
-                        frame: { xmin: 0.0, ymin: 0.0, xmax: 17.0, ymax: 17.0 },
-                        markerGraphics: [
-                          {
-                            type: "CIMMarkerGraphic",
-                            geometry: {
-                              rings: [
-                                [
-                                  [8.5, 0.2],
-                                  [7.06, 0.33],
-                                  [5.66, 0.7],
-                                  [4.35, 1.31],
-                                  [3.16, 2.14],
-                                  [2.14, 3.16],
-                                  [1.31, 4.35],
-                                  [0.7, 5.66],
-                                  [0.33, 7.06],
-                                  [0.2, 8.5],
-                                  [0.33, 9.94],
-                                  [0.7, 11.34],
-                                  [1.31, 12.65],
-                                  [2.14, 13.84],
-                                  [3.16, 14.86],
-                                  [4.35, 15.69],
-                                  [5.66, 16.3],
-                                  [7.06, 16.67],
-                                  [8.5, 16.8],
-                                  [9.94, 16.67],
-                                  [11.34, 16.3],
-                                  [12.65, 15.69],
-                                  [13.84, 14.86],
-                                  [14.86, 13.84],
-                                  [15.69, 12.65],
-                                  [16.3, 11.34],
-                                  [16.67, 9.94],
-                                  [16.8, 8.5],
-                                  [16.67, 7.06],
-                                  [16.3, 5.66],
-                                  [15.69, 4.35],
-                                  [14.86, 3.16],
-                                  [13.84, 2.14],
-                                  [12.65, 1.31],
-                                  [11.34, 0.7],
-                                  [9.94, 0.33],
-                                  [8.5, 0.2]
-                                ]
-                              ]
-                            },
-                            symbol: {
-                              type: "CIMPolygonSymbol",
-                              symbolLayers: [
-                                {
-                                  type: "CIMSolidFill",
-                                  enable: true,
-                                  color: ringColor.toJSON(),
-                                  primitiveName: "symbolFill",
-                                  effects: [{
-                                    type: "CIMGeometricEffectDonut",
-                                    width: 0.75
-                                  }]
-                                }
-                              ]
-                            }
-                          }
-                        ],
-                        scaleSymbolsProportionally: false,
                         respectFrame: true,
                         markerPlacement
                       }
@@ -1178,7 +1547,7 @@
           }
 
           async function updateWurmanDotRenderer(updatedValues, rendererParams){
-            const { min, max, minBound, maxBound, gridSize  } = updatedValues;
+            const { min, max, minBound, maxBound, gridSize, referenceDataValue  } = updatedValues;
             const { view, layer, field, normalizationField, forBinning, markerPatternEnabled }  = rendererParams;
             const renderer = forBinning ? layer.featureReduction?.renderer.clone() : layer.renderer.clone();
 
@@ -1187,7 +1556,7 @@
             const primitiveOverrides = getPrimitiveOverrides({
               view, field, normalizationField, gridSize, markerPatternEnabled
             }, {
-              minBound, maxBound, binSizePixels, isGrid
+              minBound, maxBound, binSizePixels, isGrid, referenceDataValue
             });
 
             const data = renderer.symbol.data;
@@ -1279,6 +1648,7 @@
           statisticTypeSelect.disabled = true;
           const gridResolutionUI = document.getElementById("gridResolutionUI");
           gridResolutionUI.style.display = "none";
+          const shapeSelect = document.getElementById("shapeSelect");
 
           await layer.load();
           const forBinning = layer.geometryType === "point";
@@ -1359,6 +1729,8 @@
 
             const markerPatternEnabled = markerCheckbox.checked;
 
+            const shape = shapeSelect.value;
+
             field = forBinning ? getAggregateFieldName() : fieldSelect.value;
             normalizationField = normalizationFieldSelect.value || null;
             const gridSize = markerPatternEnabled ? gridSizeSlider.values[0] : null;
@@ -1367,6 +1739,8 @@
             const vvField = colorFieldSelect.value || null;
             const vvNormalizationField = colorNormalizationFieldSelect.value || null;
             const theme = colorThemeSelect.value || null;
+
+            const referenceStat = referenceSizeStatsSelect.value || null;
 
             const {
               renderer,
@@ -1380,6 +1754,8 @@
               forBinning,
               gridSize,
               markerPatternEnabled,
+              referenceStat,
+              shape,
               typeOptions: {
                 typeField,
                 numTypes: 10,
@@ -1463,6 +1839,14 @@
             await createRenderer();
           });
           rendererStopsSelect.addEventListener("change", () => {
+            createRenderer();
+          });
+
+          referenceSizeStatsSelect.addEventListener("change", () => {
+            createRenderer();
+          });
+
+          shapeSelect.addEventListener("change", () => {
             createRenderer();
           });
 
@@ -1634,7 +2018,23 @@
           <div id="gridSizeSlider"></div>
         </div>
 
+        Symbol shape
+        <div id="shapeContainer">
+          <select id="shapeSelect" class="esri-select">
+            <option value="circle" selected>circle</option>
+            <option value="square">square</option>
+            <option value="triangle">triangle</option>
+            <option value="diamond">diamond</option>
+            <option value="pentagon">pentagon</option>
+            <option value="hexagon">hexagon</option>
+            <option value="star">star</option>
+            <option value="heptagon">heptagon</option>
+            <option value="decagon">decagon</option>
+          </select>
+        </div>
+
         Size Field
+        <div class="explanation">Creates aggregate fields that can be used for color</div>
         <div id="fieldSelectContainer">
           <select id="fieldSelect" class="esri-select">
             <option value="" selected></option>
@@ -1719,6 +2119,18 @@
         <div id="colorSliderContainer">
         </div>
 
+      </div>
+
+      <div id="referenceSizeUI">
+        Reference line
+        <select id="referenceSizeStats" class="esri-select">
+          <option value="min">min</option>
+          <option value="mean">mean</option>
+          <option value="0.5-std-dev">1/2 std dev</option>
+          <option value="1-std-dev">1 std dev</option>
+          <option value="2-std-dev" selected>2 std dev</option>
+          <option value="max" selected>max</option>
+        </select>
       </div>
       <div id="legendDiv"></div>
     </div>
