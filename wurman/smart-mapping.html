@@ -1480,7 +1480,7 @@
                                 {
                                   type: "CIMSolidFill",
                                   enable: true,
-                                  color: [255,128,0,255],// ringColor.toJSON(),
+                                  color: ringColor.toJSON(),
                                   primitiveName: "symbolFill",
                                   effects: [{
                                     type: "CIMGeometricEffectDonut",
@@ -2006,7 +2006,7 @@
         <button id="createRendererBtn" class="esri-button">Create style</button>
 
         <div id="markerCheckboxContainer">
-          <input id="createMarkerPattern" type="checkbox" class="esri-checkbox" checked> Create marker pattern fill
+          <input id="createMarkerPattern" type="checkbox" class="esri-checkbox"> Create marker pattern fill
         </div>
 
         <div id="gridResolutionUI">
