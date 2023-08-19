@@ -95,6 +95,15 @@
         margin: 1px;
       }
 
+      #symbol-sizes-container{
+        width: 300px;
+      }
+
+      #symbol-sizes{
+        width: 300px;
+        height: 55px;
+      }
+
     </style>
 
     <script src="https://js.arcgis.com/4.27/"></script>
@@ -459,6 +468,7 @@
 
           let sizeSlider = null;
           let colorSlider = null;
+          let symbolSizeSlider = null;
 
           let min, max, minBound, maxBound, binSizePixels, isGrid, field, normalizationField;
 
@@ -491,8 +501,10 @@
                 const referenceStat = referenceSizeStatsSelect.value;
                 const referenceDataValue = referenceSizeDataValue;
 
+                const minSize = Math.min(...symbolSizeSlider.values);
+
                 const renderer = await updateWurmanDotRenderer({
-                  min, max, minBound, maxBound, gridSize, referenceDataValue
+                  min, max, minBound, maxBound, gridSize, referenceDataValue, minSize
                 }, {
                   view, layer, field, normalizationField, forBinning, markerPatternEnabled
                 });
@@ -520,6 +532,57 @@
                   standardDeviationCount: 2
                 }
               });
+            }
+          }
+
+          const symbolSizesContainer = document.getElementById("symbol-sizes");
+
+          function updateSymbolSizeSlider(params){
+            const { minSize, maxSize } = params;
+
+            if(!symbolSizeSlider){
+              symbolSizeSlider = new Slider({
+                container: symbolSizesContainer,
+                values: [minSize, maxSize],
+                min: 1,
+                max: 60,
+                steps: 0.5,
+                labelInputsEnabled: true,
+                rangeLabelInputsEnabled: true,
+                visibleElements: {
+                  rangeLabels: true,
+                  labels: true
+                }
+              });
+
+              symbolSizeSlider.watch("values", async (values) => {
+                const minSize = Math.min(...values);
+                const maxSize = Math.max(...values);
+
+                const minBound = sizeSlider.stops[0].value;
+                const maxBound = sizeSlider.stops[1].value;
+                const forBinning = Boolean(layer.featureReduction);
+                const markerPatternEnabled = markerCheckbox.checked;
+                const referenceStat = referenceSizeStatsSelect.value;
+                const referenceDataValue = referenceSizeDataValue;
+
+                const renderer = await updateWurmanDotRenderer({
+                  min, max, minBound, maxBound, referenceDataValue, minSize, maxSize
+                }, {
+                  view, layer, field, normalizationField, forBinning, markerPatternEnabled
+                });
+
+                if(forBinning){
+                  const featureReduction = layer.featureReduction.clone();
+                  featureReduction.renderer = renderer;
+                  layer.featureReduction = featureReduction;
+                } else {
+                  layer.renderer = renderer;
+                }
+              });
+
+            } else {
+              symbolSizeSlider.values = [ minSize, maxSize ];
             }
           }
 
@@ -698,12 +761,13 @@
           }
 
           function getPrimitiveOverrides(rendererParams, stats){
-            const { view, field, normalizationField, typeOptions, gridSize, markerPatternEnabled } = rendererParams;
+            const { view, field, normalizationField, typeOptions, gridSize, markerPatternEnabled, minSize } = rendererParams;
             const gridSizePixels = gridSize || 20;
             const { minBound, maxBound, binSizePixels, isGrid, referenceDataValue } = stats;
 
             let value;
             let fields;
+
             if(!field){
               value = 0;
             } else {
@@ -773,7 +837,7 @@
                     var innerRatio = Constrain(ratio, 0, 1);
                     var outerSize = binWidthPixels * (${view.scale} / $view.scale);
                     // 0 is what the minSize could be if provided in UI
-                    var innerSize = (outerSize * innerRatio) + 0;
+                    var innerSize = Constrain((outerSize * innerRatio) + ${minSize}, 0, outerSize);
                     // pixel to point conversion
                     return innerSize * 0.75;
                   ` : `
@@ -788,7 +852,7 @@
                     var innerRatio = Constrain(ratio, 0, 1);
                     var outerSize = ${!markerPatternEnabled ? binSizePixels : gridSizePixels} * 0.75;
                     // 0 is what the minSize could be if provided in UI
-                    var innerSize = (outerSize * innerRatio) + 0;
+                    var innerSize = Constrain((outerSize * innerRatio) + ${minSize}, 0, outerSize);
                     // pixel to point conversion
                     return innerSize * 0.75;
                   `,
@@ -909,6 +973,18 @@
                   [16.5, 16.5],
                   [16.5, 0.5],
                   [0.5, 0.5]
+                ]
+              ]
+            };
+
+            const squareDiamond = {
+              rings: [
+                [
+                  [8.5, 0.5],
+                  [0.2, 8.5],
+                  [8.5, 16.5],
+                  [16.5, 8.5],
+                  [8.5, 0.5]
                 ]
               ]
             };
@@ -1276,6 +1352,7 @@
               square,
               triangle,
               diamond,
+              squareDiamond,
               hexagon,
               pentagon,
               star,
@@ -1333,6 +1410,8 @@
               numBins: 60
             });
 
+            const minSize = params.minSize ?? 0;
+
             const defaultMin = 0;
             const percentageMax = 100;
             const percentageMin = 0;
@@ -1385,6 +1464,8 @@
             binSizePixels = getBinSizePixelsResult.binSizePixels;
             isGrid = getBinSizePixelsResult.isGrid;
 
+            const maxSize = binSizePixels;
+
             let uniqueValueInfos, colorVariable, visualVariables, colorStats, colorHistogramResult;
 
             if(typeField){
@@ -1436,7 +1517,8 @@
                 uniqueValueInfos
               },
               gridSize,
-              markerPatternEnabled
+              markerPatternEnabled,
+              minSize
             }, {
               minBound, maxBound, binSizePixels, isGrid, referenceDataValue
             });
@@ -1542,21 +1624,23 @@
                 maxBound,
                 histogramResult
               },
+              minSize,
+              maxSize,
               uniqueValueInfos
             };
           }
 
           async function updateWurmanDotRenderer(updatedValues, rendererParams){
-            const { min, max, minBound, maxBound, gridSize, referenceDataValue  } = updatedValues;
+            const { min, max, minBound, maxBound, gridSize, referenceDataValue, minSize, maxSize  } = updatedValues;
             const { view, layer, field, normalizationField, forBinning, markerPatternEnabled }  = rendererParams;
             const renderer = forBinning ? layer.featureReduction?.renderer.clone() : layer.renderer.clone();
 
             const { binSizePixels, isGrid } = await getBinSizePixels({ view, layer, forBinning, markerPatternEnabled });
 
             const primitiveOverrides = getPrimitiveOverrides({
-              view, field, normalizationField, gridSize, markerPatternEnabled
+              view, field, normalizationField, gridSize, markerPatternEnabled, minSize
             }, {
-              minBound, maxBound, binSizePixels, isGrid, referenceDataValue
+              minBound, maxBound, binSizePixels: maxSize || binSizePixels, isGrid, referenceDataValue
             });
 
             const data = renderer.symbol.data;
@@ -1745,7 +1829,9 @@
             const {
               renderer,
               statistics,
-              isGrid
+              isGrid,
+              minSize,
+              maxSize
             } = await createProportionalGridRenderer({
               layer,
               view,
@@ -1780,6 +1866,11 @@
             }
 
             updateSizeSlider(statistics);
+            updateSymbolSizeSlider({
+              minSize,
+              maxSize
+            });
+
             gridSizeSlider.disabled = isGrid;
             if(!isGrid && markerPatternEnabled){
               gridResolutionUI.style.display = "block";
@@ -1891,6 +1982,7 @@
           });
 
           gridSizeSlider.watch("values", async ([value]) => {
+            const minSize = Math.min(...symbolSizeSlider.values);
             const minBound = sizeSlider.stops[0].value;
             const maxBound = sizeSlider.stops[1].value;
             const forBinning = Boolean(layer.featureReduction);
@@ -1898,7 +1990,7 @@
             const markerPatternEnabled = markerCheckbox.checked;
 
             const renderer = await updateWurmanDotRenderer({
-              min, max, minBound, maxBound, gridSize
+              min, max, minBound, maxBound, gridSize, minSize
             }, {
               view, layer, field, normalizationField, forBinning, markerPatternEnabled
             });
@@ -2018,21 +2110,6 @@
           <div id="gridSizeSlider"></div>
         </div>
 
-        Symbol shape
-        <div id="shapeContainer">
-          <select id="shapeSelect" class="esri-select">
-            <option value="circle" selected>circle</option>
-            <option value="square">square</option>
-            <option value="triangle">triangle</option>
-            <option value="diamond">diamond</option>
-            <option value="pentagon">pentagon</option>
-            <option value="hexagon">hexagon</option>
-            <option value="star">star</option>
-            <option value="heptagon">heptagon</option>
-            <option value="decagon">decagon</option>
-          </select>
-        </div>
-
         Size Field
         <div class="explanation">Creates aggregate fields that can be used for color</div>
         <div id="fieldSelectContainer">
@@ -2048,6 +2125,22 @@
           </select>
         </div>
 
+        Symbol shape
+        <div id="shapeContainer">
+          <select id="shapeSelect" class="esri-select">
+            <option value="circle" selected>circle</option>
+            <option value="square">square</option>
+            <option value="triangle">triangle</option>
+            <option value="diamond">diamond</option>
+            <option value="squareDiamond">diamond (square)</option>
+            <option value="pentagon">pentagon</option>
+            <option value="hexagon">hexagon</option>
+            <option value="star">star</option>
+            <option value="heptagon">heptagon</option>
+            <option value="decagon">decagon</option>
+          </select>
+        </div>
+
         <div id="statisticTypeUI">
           Statistic type
           <select id="statisticTypeSelect" class="esri-select" disabled>
@@ -2058,13 +2151,23 @@
           </select>
         </div>
 
-        Maximum bound (full circle value/stat)
+        Max size data value
         <select id="rendererStopsSelect" class="esri-select">
           <option value="mean">mean</option>
           <option value="0.5-std-dev">1/2 std dev</option>
           <option value="1-std-dev">1 std dev</option>
           <option value="2-std-dev" selected>2 std dev</option>
           <option value="max">max</option>
+        </select>
+
+        Reference line data value
+        <select id="referenceSizeStats" class="esri-select">
+          <option value="min">min</option>
+          <option value="mean">mean</option>
+          <option value="0.5-std-dev">1/2 std dev</option>
+          <option value="1-std-dev">1 std dev</option>
+          <option value="2-std-dev" selected>2 std dev</option>
+          <option value="max" selected>max</option>
         </select>
 
         Type field
@@ -2116,22 +2219,15 @@
           <div id="sizeSlider"></div>
         </div>
 
+        <div id="symbol-sizes-container"><div id="symbol-sizes"></div></div>
+
         <div id="colorSliderContainer">
         </div>
 
       </div>
 
-      <div id="referenceSizeUI">
-        Reference line
-        <select id="referenceSizeStats" class="esri-select">
-          <option value="min">min</option>
-          <option value="mean">mean</option>
-          <option value="0.5-std-dev">1/2 std dev</option>
-          <option value="1-std-dev">1 std dev</option>
-          <option value="2-std-dev" selected>2 std dev</option>
-          <option value="max" selected>max</option>
-        </select>
-      </div>
+      <!-- <div id="referenceSizeUI">
+      </div> -->
       <div id="legendDiv"></div>
     </div>
     <div id="overlayDiv" class="esri-widget">
