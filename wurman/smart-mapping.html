@@ -555,7 +555,8 @@
                 }
               });
 
-              symbolSizeSlider.watch("values", async (values) => {
+              symbolSizeSlider.on(["segment-drag", "thumb-change", "thumb-drag"], async () => {
+                const values = symbolSizeSlider.values;
                 const minSize = Math.min(...values);
                 const maxSize = Math.max(...values);
 
@@ -580,6 +581,17 @@
                   layer.renderer = renderer;
                 }
               });
+
+              // USE VIEW.RESOLUTION HERE
+              // const referenceResolution = view.resolution;
+              // view.watch("resolution", (resolution) => {
+              //   const factor = referenceResolution / resolution;
+
+              //   const minSize = Math.min(...symbolSizeSlider.values);
+              //   const maxSize = Math.max(...symbolSizeSlider.values);
+
+              //   symbolSizeSlider.values = [ minSize * factor, maxSize * factor];
+              // });
 
             } else {
               symbolSizeSlider.values = [ minSize, maxSize ];
@@ -2098,7 +2110,7 @@
         <button id="createRendererBtn" class="esri-button">Create style</button>
 
         <div id="markerCheckboxContainer">
-          <input id="createMarkerPattern" type="checkbox" class="esri-checkbox"> Create marker pattern fill
+          <input id="createMarkerPattern" type="checkbox" class="esri-checkbox" checked> Create marker pattern fill
         </div>
 
         <div id="gridResolutionUI">
