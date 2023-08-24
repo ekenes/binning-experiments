@@ -1572,15 +1572,46 @@
                               type: "CIMPolygonSymbol",
                               symbolLayers: [
                                 {
+                                  // type: "CIMSolidStroke",
                                   type: "CIMSolidFill",
                                   enable: true,
-                                  color: ringColor.toJSON(),
-                                  primitiveName: "symbolFill",
-                                  effects: [{
+                                  color: referenceStat !== "max" ? [128, 128, 128, 255] : ringColor.toJSON(),
+                                  colorLocked: referenceStat !== "max",
+                                  primitiveName: referenceStat !== "max" ? "grayRing" : "symbolFill",
+                                  width: 1.5,
+                                  effects: [
+                                    {
                                     type: "CIMGeometricEffectDonut",
                                     width: 0.75
-                                  }]
-                                }
+                                  },
+                                  // {
+                                  //   type: "CIMGeometricEffectDashes",
+                                  //   dashTemplate: [2,2,2,2], // [dash, gap, dash, gap]
+                                  //   lineDashEnding: "NoConstraint",
+                                  //   offsetAlongLine: 0
+                                  // }
+                                ]
+                                },
+                                // {
+                                //   type: "CIMSolidStroke",
+                                //   // type: "CIMSolidFill",
+                                //   enable: true,
+                                //   color: ringColor.toJSON(),
+                                //   primitiveName: "symbolFill",
+                                //   width: 1.5,
+                                //   effects: [
+                                //     {
+                                //     type: "CIMGeometricEffectDonut",
+                                //     width: 0.75
+                                //   },
+                                //   // {
+                                //   //   type: "CIMGeometricEffectDashes",
+                                //   //   dashTemplate: [2,2,2,2], // [dash, gap, dash, gap]
+                                //   //   lineDashEnding: "NoConstraint",
+                                //   //   offsetAlongLine: 2
+                                //   // }
+                                // ]
+                                // }
                               ]
                             }
                           }
@@ -2122,21 +2153,6 @@
           <div id="gridSizeSlider"></div>
         </div>
 
-        Size Field
-        <div class="explanation">Creates aggregate fields that can be used for color</div>
-        <div id="fieldSelectContainer">
-          <select id="fieldSelect" class="esri-select">
-            <option value="" selected></option>
-          </select>
-        </div>
-
-        Size Normalization Field
-        <div id="normalizationFieldSelectContainer">
-          <select id="normalizationFieldSelect" class="esri-select">
-            <option value="" selected></option>
-          </select>
-        </div>
-
         Symbol shape
         <div id="shapeContainer">
           <select id="shapeSelect" class="esri-select">
@@ -2153,6 +2169,21 @@
           </select>
         </div>
 
+        Size Field
+        <div class="explanation">Creates aggregate fields that can be used for color</div>
+        <div id="fieldSelectContainer">
+          <select id="fieldSelect" class="esri-select">
+            <option value="" selected></option>
+          </select>
+        </div>
+
+        Size Normalization Field
+        <div id="normalizationFieldSelectContainer">
+          <select id="normalizationFieldSelect" class="esri-select">
+            <option value="" selected></option>
+          </select>
+        </div>
+
         <div id="statisticTypeUI">
           Statistic type
           <select id="statisticTypeSelect" class="esri-select" disabled>
@@ -2163,7 +2194,7 @@
           </select>
         </div>
 
-        Max size data value
+        Max size =
         <select id="rendererStopsSelect" class="esri-select">
           <option value="mean">mean</option>
           <option value="0.5-std-dev">1/2 std dev</option>
@@ -2179,7 +2210,7 @@
           <option value="0.5-std-dev">1/2 std dev</option>
           <option value="1-std-dev">1 std dev</option>
           <option value="2-std-dev" selected>2 std dev</option>
-          <option value="max" selected>max</option>
+          <option value="max" selected>= max size</option>
         </select>
 
         Type field
