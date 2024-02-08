@@ -1,280 +1,277 @@
 <html>
-  <head>
-    <meta charset="utf-8" />
-    <meta
-      name="viewport"
-      content="initial-scale=1,maximum-scale=1,user-scalable=no"
-    />
 
-    <title>
-      Binning with aggregate fields | Sample | ArcGIS API for JavaScript 4.24
-    </title>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+
+  <title>
+    Binning with aggregate fields | Sample | ArcGIS API for JavaScript 4.24
+  </title>
 
 
 
-    <link
-      rel="stylesheet"
-      href="https://js.arcgis.com/next/esri/themes/light/main.css"
-    />
+  <link rel="stylesheet" href="https://js.arcgis.com/next/esri/themes/light/main.css" />
 
 
-    <style>
-      html,
-      body,
-      #viewDiv {
-        padding: 0;
-        margin: 0;
-        height: 100%;
-        width: 100%;
-      }
-      .description {
-        background-color: white;
-        padding: 10px;
-        text-align: center;
-      }
-      .title {
-        background-color: inherit;
-        text-align: center;
-        font-size: 16pt;
-        padding: 5px 10px 10px 10px;
-        color: #363636
-      }
+  <style>
+    html,
+    body,
+    #viewDiv {
+      padding: 0;
+      margin: 0;
+      height: 100%;
+      width: 100%;
+    }
 
-      #infoDiv {
-        padding: 10px;
-        display: flex;
-      }
+    .description {
+      background-color: white;
+      padding: 10px;
+      text-align: center;
+    }
 
-      #sliders {
-        /* flex-direction: column; */
-        height: fit-content;
-      }
+    .title {
+      background-color: inherit;
+      text-align: center;
+      font-size: 16pt;
+      padding: 5px 10px 10px 10px;
+      color: #363636
+    }
 
-      #smartMappingDiv{
-        width: 250px;
-      }
+    #infoDiv {
+      padding: 10px;
+      display: flex;
+    }
 
-      .esri-size-slider .esri-slider .esri-slider__content {
-        height: 175px;
-      }
-      .esri-color-slider .esri-slider .esri-slider__content {
-        height: 175px;
-      }
+    #sliders {
+      /* flex-direction: column; */
+      height: fit-content;
+    }
 
-      #binLevelSlider{
-        height: 50px;
-      }
+    #smartMappingDiv {
+      width: 250px;
+    }
 
-      #gridSizeSlider{
-        height: 50px;
-      }
+    .esri-size-slider .esri-slider .esri-slider__content {
+      height: 175px;
+    }
 
-      #overlayDiv {
-        z-index: 1;
-        position: absolute;
-        margin: auto auto;
-        top: 0;
-        right: 0;
-        bottom: 0;
-        left: 0;
-        width: 300px;
-        height: 240px;
-        padding: 10px;
-        background-color: white;
-        border: 1px solid grey;
-        visibility: hidden;
-      }
+    .esri-color-slider .esri-slider .esri-slider__content {
+      height: 175px;
+    }
 
-      h2{
-        text-align: center;
-      }
+    #binLevelSlider {
+      height: 50px;
+    }
 
-      .explanation {
-        font-size: x-small;
-        margin: 1px;
-      }
+    #gridSizeSlider {
+      height: 50px;
+    }
 
-      #symbol-sizes-container{
-        width: 300px;
-      }
+    #overlayDiv {
+      z-index: 1;
+      position: absolute;
+      margin: auto auto;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      width: 300px;
+      height: 240px;
+      padding: 10px;
+      background-color: white;
+      border: 1px solid grey;
+      visibility: hidden;
+    }
 
-      #symbol-sizes{
-        width: 300px;
-        height: 55px;
-      }
+    h2 {
+      text-align: center;
+    }
 
-    </style>
+    .explanation {
+      font-size: x-small;
+      margin: 1px;
+    }
 
-    <script src="https://jsdev.arcgis.com/4.29/"></script>
+    #symbol-sizes-container {
+      width: 300px;
+    }
 
-    <script type="text/javascript">
-      require([
-        "esri/WebMap",
-        "esri/views/MapView",
-        "esri/layers/FeatureLayer",
-        "esri/layers/support/AggregateField",
-        "esri/smartMapping/heuristics/binLevel",
-        "esri/smartMapping/heuristics/scaleRange",
-        "esri/smartMapping/statistics/summaryStatistics",
-        "esri/smartMapping/statistics/spatialStatistics",
-        "esri/smartMapping/statistics/histogram",
-        "esri/smartMapping/symbology/location",
-        "esri/smartMapping/renderers/color",
-        "esri/smartMapping/renderers/size",
-        "esri/smartMapping/renderers/type",
-        "esri/layers/support/LabelClass",
-        "esri/geometry/geometryEngine",
-        "esri/widgets/Legend",
-        "esri/widgets/Expand",
-        "esri/widgets/BasemapGallery",
-        "esri/widgets/Home",
-        "esri/widgets/smartMapping/SizeSlider",
-        "esri/widgets/smartMapping/ColorSlider",
-        "esri/widgets/Slider",
-        "esri/Color",
-        "esri/core/reactiveUtils"
-      ], function (
-        WebMap,
-        MapView,
-        FeatureLayer,
-        AggregateField,
-        binLevel,
-        scaleRange,
-        summaryStatistics,
-        spatialStatistics,
-        histogram,
-        locationSymbology,
-        colorRendererCreator,
-        sizeRendererCreator,
-        typeRendererCreator,
-        LabelClass,
-        geometryEngine,
-        Legend,
-        Expand,
-        BasemapGallery,
-        Home,
-        SizeSlider,
-        ColorSlider,
-        Slider,
-        Color,
-        reactiveUtils
-      ) {
-        (async () => {
+    #symbol-sizes {
+      width: 300px;
+      height: 55px;
+    }
+  </style>
 
-          let portalItemUrl = "";
+  <script src="https://jsdev.arcgis.com/4.29/"></script>
 
-          function getUrlParams() {
-            const queryParams = document.location.search.substr(1);
-            let result = {};
+  <script type="text/javascript">
+    require([
+      "esri/WebMap",
+      "esri/views/MapView",
+      "esri/layers/FeatureLayer",
+      "esri/layers/support/AggregateField",
+      "esri/smartMapping/heuristics/binLevel",
+      "esri/smartMapping/heuristics/scaleRange",
+      "esri/smartMapping/statistics/summaryStatistics",
+      "esri/smartMapping/statistics/spatialStatistics",
+      "esri/smartMapping/statistics/histogram",
+      "esri/smartMapping/symbology/location",
+      "esri/smartMapping/renderers/color",
+      "esri/smartMapping/renderers/size",
+      "esri/smartMapping/renderers/type",
+      "esri/layers/support/LabelClass",
+      "esri/geometry/geometryEngine",
+      "esri/widgets/Legend",
+      "esri/widgets/Expand",
+      "esri/widgets/BasemapGallery",
+      "esri/widgets/Home",
+      "esri/widgets/smartMapping/SizeSlider",
+      "esri/widgets/smartMapping/ColorSlider",
+      "esri/widgets/Slider",
+      "esri/Color",
+      "esri/core/reactiveUtils"
+    ], function (
+      WebMap,
+      MapView,
+      FeatureLayer,
+      AggregateField,
+      binLevel,
+      scaleRange,
+      summaryStatistics,
+      spatialStatistics,
+      histogram,
+      locationSymbology,
+      colorRendererCreator,
+      sizeRendererCreator,
+      typeRendererCreator,
+      LabelClass,
+      geometryEngine,
+      Legend,
+      Expand,
+      BasemapGallery,
+      Home,
+      SizeSlider,
+      ColorSlider,
+      Slider,
+      Color,
+      reactiveUtils
+    ) {
+      (async () => {
 
-            queryParams.split("&").forEach(function(part) {
-              var item = part.split("=");
-              result[item[0]] = decodeURIComponent(item[1]);
-            });
+        let portalItemUrl = "";
 
-            return result;
-          }
+        function getUrlParams() {
+          const queryParams = document.location.search.substr(1);
+          let result = {};
 
-          // function to set an id as a url param
-          function setUrlParams(id, layerId, portal) {
-            window.history.pushState("", "", `${window.location.pathname}?id=${id}&layerId=${layerId}&portal=${portal}`);
-          }
+          queryParams.split("&").forEach(function (part) {
+            var item = part.split("=");
+            result[item[0]] = decodeURIComponent(item[1]);
+          });
 
-          async function createLayer(){
+          return result;
+        }
 
-            let layer = null;
+        // function to set an id as a url param
+        function setUrlParams(id, layerId, portal) {
+          window.history.pushState("", "", `${window.location.pathname}?id=${id}&layerId=${layerId}&portal=${portal}`);
+        }
 
-            let { id, portal, layerId, url } = getUrlParams();
+        async function createLayer() {
 
-            if(!url){
-              if(!id){
-                id = "94b553493bcf432fad439adbde231fbb";
-              }
+          let layer = null;
 
-              if(!layerId){
-                layerId = 0;
-              }
+          let { id, portal, layerId, url } = getUrlParams();
 
-              if(!portal){
-                portal = "https://www.arcgis.com/";
-              }
+          if (!url) {
+            if (!id) {
+              id = "94b553493bcf432fad439adbde231fbb";
+            }
 
-              setUrlParams(id, layerId, portal);
+            if (!layerId) {
+              layerId = 0;
+            }
 
-              layer = new FeatureLayer({
-                portalItem: {
-                  id,
-                  portal: {
-                    url: portal
+            if (!portal) {
+              portal = "https://www.arcgis.com/";
+            }
+
+            setUrlParams(id, layerId, portal);
+
+            layer = new FeatureLayer({
+              portalItem: {
+                id,
+                portal: {
+                  url: portal
+                }
+              },
+              // outFields: ["*"],
+              layerId,
+              labelingInfo: [{
+                symbol: {
+                  type: "text", // autocasts as new TextSymbol()
+                  color: "white",
+                  haloColor: "rgba(50,50,50,0.3)",
+                  haloSize: 1,
+                  yoffset: 5,
+                  font: {
+                    // autocast as new Font()
+                    family: "Noto Sans",
+                    size: 12,
+                    weight: "bold"
                   }
                 },
-                // outFields: ["*"],
-                layerId,
-                labelingInfo: [{
-                  symbol: {
-                    type: "text", // autocasts as new TextSymbol()
-                    color: "white",
-                    haloColor: "rgba(50,50,50,0.3)",
-                    haloSize: 1,
-                    yoffset: 5,
-                    font: {
-                      // autocast as new Font()
-                      family: "Noto Sans",
-                      size: 12,
-                      weight: "bold"
-                    }
-                  },
-                  labelPlacement: "above-center",
-                  labelExpressionInfo: {
-                    expression: `
+                labelPlacement: "above-center",
+                labelExpressionInfo: {
+                  expression: `
                       var e = Extent($feature);
                       var w = e.xmax - e.xmin;
                       var h = e.ymax - e.ymin;
                       return Text(w/h, "AR: #.##");// + "\\n" + Text(Sqrt(w*h), "Size: #.##");
                     `
-                  }
-                }],
-                labelsVisible: false
-              });
-            } else {
-              portal = null;
-              id = null;
-              layerId = null;
+                }
+              }],
+              labelsVisible: false
+            });
+          } else {
+            portal = null;
+            id = null;
+            layerId = null;
 
-              layer = new FeatureLayer({
-                url,
-                // outFields: ["*"],
-              });
-            }
+            layer = new FeatureLayer({
+              url,
+              // outFields: ["*"],
+            });
+          }
 
-            layer.opacity = 1;
-            layer.minScale = 0;
-            layer.maxScale = 0;
+          layer.opacity = 1;
+          layer.minScale = 0;
+          layer.maxScale = 0;
 
-            await layer.load();
+          await layer.load();
 
-            if(layer.geometryType !== "point" && layer.geometryType !== "polygon"){
-              alert("Only point or polygon layers are valid.");
-              throw new Error("Only point layers are valid.");
-            }
+          if (layer.geometryType !== "point" && layer.geometryType !== "polygon") {
+            alert("Only point or polygon layers are valid.");
+            throw new Error("Only point layers are valid.");
+          }
 
-            if(layer.geometryType === "polygon"){
-              // To emphasize irregular shapes.
-              // const colors = ["rgba(165, 50, 23, 1)", "rgba(165, 50, 23, 0.5)", "rgba(165, 50, 23, 0)", "rgba(165, 50, 23, 0.5)", "rgba(165, 50, 23, 1)"];
-              // To emphasize grid-like shapes.
-              const colors = ["rgba(165, 50, 23, 0)", "rgba(165, 50, 23, 0.5)", "rgba(165, 50, 23, 1)", "rgba(165, 50, 23, 0.5)", "rgba(165, 50, 23, 0)"];
-              layer.renderer = {
-                type: "simple",
-                symbol: {
-                  type: "simple-fill",
-                  outline: {
-                    width: 0.5,
-                    color: "rgba(255,255,255,0.4)"
-                  }
-                },
-                visualVariables: [{
-                  type: "color",
-                  valueExpression: `
+          if (layer.geometryType === "polygon") {
+            // To emphasize irregular shapes.
+            // const colors = ["rgba(165, 50, 23, 1)", "rgba(165, 50, 23, 0.5)", "rgba(165, 50, 23, 0)", "rgba(165, 50, 23, 0.5)", "rgba(165, 50, 23, 1)"];
+            // To emphasize grid-like shapes.
+            const colors = ["rgba(165, 50, 23, 0)", "rgba(165, 50, 23, 0.5)", "rgba(165, 50, 23, 1)", "rgba(165, 50, 23, 0.5)", "rgba(165, 50, 23, 0)"];
+            layer.renderer = {
+              type: "simple",
+              symbol: {
+                type: "simple-fill",
+                outline: {
+                  width: 0.5,
+                  color: "rgba(255,255,255,0.4)"
+                }
+              },
+              visualVariables: [{
+                type: "color",
+                valueExpression: `
                     var e = Extent($feature);
                     if(!IsEmpty(e)){
                       var w = e.xmax - e.xmin;
@@ -283,1876 +280,1543 @@
                     }
                     return null;
                   `,
-                  stops: [
-                    { value: 0.5, color: colors[0] },
-                    { value: 0.75, color: colors[1] },
-                    { value: 1, color: colors[2] },
-                    { value: 1.25, color: colors[3] },
-                    { value: 1.5, color: colors[4] }
-                  ]
-                }]
-              };
-            }
-
-            return layer;
-          }
-
-          const layer = await createLayer();
-
-          const map = new WebMap({
-            basemap: "gray-vector",
-            layers: [layer]
-          });
-
-          const view = new MapView({
-            container: "viewDiv",
-            map,
-            scale: 144447.638572,
-            center: [-90.16232569699594, 29.97990166495397]
-          });
-
-          await view.when(async () => {
-            await layer.load();
-            const title = layer.title + " (Bounded Size)";
-            const save = document.getElementById("saveWebMap");
-            save.disabled = false;
-            save.addEventListener("click", () => {
-              // item automatically casts to a PortalItem instance by saveAs
-              const item = {
-                title
-              };
-
-              // Update properties of the WebMap related to the view.
-              // This should be called just before saving a webmap.
-              map.updateFrom(view).then(() => {
-                map
-                  .saveAs(item)
-                  // Saved successfully
-                  .then((item) => {
-                    const itemPageUrl = `${item.portal.url}/home/item.html?id=${item.id}`;
-                    const link = `<a target="_blank" href="${itemPageUrl}">${title}</a>`;
-
-                    statusMessage(
-                      "Save WebMap",
-                      `<br> Successfully saved as <i>${link}</i>`
-                    );
-                  })
-                  // Save didn't work correctly
-                  .catch((error) => {
-                    if (error.name != "identity-manager:user-aborted") {
-                      statusMessage("Save WebMap", `<br> Error ${error}`);
-                    }
-                  });
-              });
-            });
-
-            const overlay = document.getElementById("overlayDiv");
-            const ok = overlay.getElementsByTagName("input")[0];
-
-            function statusMessage(head, info) {
-              document.getElementById("head").innerHTML = head;
-              document.getElementById("info").innerHTML = info;
-              overlay.style.visibility = "visible";
-            }
-
-            ok.addEventListener("click", () => {
-              overlay.style.visibility = "hidden";
-            });
-          });
-
-          const { extent } = await layer.queryExtent();
-          view.extent = extent.expand(1.5);
-
-          const binLevelSlider = new Slider({
-            container: "binLevelSlider",
-            values: [1],
-            min: 2,
-            max: 7,
-            steps: 1,
-            disabled: true,
-            visibleElements: {
-              rangeLabels: true
-            },
-            layout: "horizontal-reversed",
-            labelFormatFunction: (value, type) => {
-              if(type === "max"){
-                return "Smaller bins";
-              }
-              if(type === "min"){
-                return "Larger bins";
-              }
-              return value;
-            }
-          });
-
-          const gridSizeSlider = new Slider({
-            container: "gridSizeSlider",
-            values: [20],
-            min: 4,
-            max: 40,
-            steps: 1,
-            disabled: true,
-            visibleElements: {
-              rangeLabels: true
-            }
-          });
-
-          /**
-           * Creates default binning configuration for a point layer
-           */
-          async function createBins(params){
-
-            const { view, layer, fields } = params;
-
-            const fixedBinLevel = await binLevel({ view });
-            binLevelSlider.disabled = false;
-            binLevelSlider.values = [ fixedBinLevel ];
-
-            const outlineColor = "gray";
-            const featureReduction = {
-              type: "binning",
-              fixedBinLevel,
-              fields: [
-                new AggregateField({
-                  name: "aggregateCount",
-                  alias: "Total count",
-                  statisticType: "count"
-                })
-              ],
-              labelsVisible: false,
-              popupEnabled: true,
-              popupTemplate: {
-                title: "Aggregate summary",
-                content: [
-                  {
-                    type: "text",
-                    text: "{aggregateCount} points are within this bin."
-                  }
-                ],
-                fieldInfos: [
-                  {
-                    fieldName: "aggregateCount",
-                    label: "Total count",
-                    format: {
-                      places: 0,
-                      digitSeparator: true
-                    }
-                  }
+                stops: [
+                  { value: 0.5, color: colors[0] },
+                  { value: 0.75, color: colors[1] },
+                  { value: 1, color: colors[2] },
+                  { value: 1.25, color: colors[3] },
+                  { value: 1.5, color: colors[4] }
                 ]
+              }]
+            };
+          }
+
+          return layer;
+        }
+
+        const layer = await createLayer();
+
+        const map = new WebMap({
+          basemap: "gray-vector",
+          layers: [layer]
+        });
+
+        const view = new MapView({
+          container: "viewDiv",
+          map,
+          scale: 144447.638572,
+          center: [-90.16232569699594, 29.97990166495397]
+        });
+
+        await view.when(async () => {
+          await layer.load();
+          const title = layer.title + " (Bounded Size)";
+          const save = document.getElementById("saveWebMap");
+          save.disabled = false;
+          save.addEventListener("click", () => {
+            // item automatically casts to a PortalItem instance by saveAs
+            const item = {
+              title
+            };
+
+            // Update properties of the WebMap related to the view.
+            // This should be called just before saving a webmap.
+            map.updateFrom(view).then(() => {
+              map
+                .saveAs(item)
+                // Saved successfully
+                .then((item) => {
+                  const itemPageUrl = `${item.portal.url}/home/item.html?id=${item.id}`;
+                  const link = `<a target="_blank" href="${itemPageUrl}">${title}</a>`;
+
+                  statusMessage(
+                    "Save WebMap",
+                    `<br> Successfully saved as <i>${link}</i>`
+                  );
+                })
+                // Save didn't work correctly
+                .catch((error) => {
+                  if (error.name != "identity-manager:user-aborted") {
+                    statusMessage("Save WebMap", `<br> Error ${error}`);
+                  }
+                });
+            });
+          });
+
+          const overlay = document.getElementById("overlayDiv");
+          const ok = overlay.getElementsByTagName("input")[0];
+
+          function statusMessage(head, info) {
+            document.getElementById("head").innerHTML = head;
+            document.getElementById("info").innerHTML = info;
+            overlay.style.visibility = "visible";
+          }
+
+          ok.addEventListener("click", () => {
+            overlay.style.visibility = "hidden";
+          });
+        });
+
+        const { extent } = await layer.queryExtent();
+        view.extent = extent.expand(1.5);
+
+        const binLevelSlider = new Slider({
+          container: "binLevelSlider",
+          values: [1],
+          min: 2,
+          max: 7,
+          steps: 1,
+          disabled: true,
+          visibleElements: {
+            rangeLabels: true
+          },
+          layout: "horizontal-reversed",
+          labelFormatFunction: (value, type) => {
+            if (type === "max") {
+              return "Smaller bins";
+            }
+            if (type === "min") {
+              return "Larger bins";
+            }
+            return value;
+          }
+        });
+
+        const gridSizeSlider = new Slider({
+          container: "gridSizeSlider",
+          values: [20],
+          min: 4,
+          max: 40,
+          steps: 1,
+          disabled: true,
+          visibleElements: {
+            rangeLabels: true
+          }
+        });
+
+        /**
+         * Creates default binning configuration for a point layer
+         */
+        async function createBins(params) {
+
+          const { view, layer, fields } = params;
+
+          const fixedBinLevel = await binLevel({ view });
+          binLevelSlider.disabled = false;
+          binLevelSlider.values = [fixedBinLevel];
+
+          const outlineColor = "gray";
+          const featureReduction = {
+            type: "binning",
+            fixedBinLevel,
+            fields: [
+              new AggregateField({
+                name: "aggregateCount",
+                alias: "Total count",
+                statisticType: "count"
+              })
+            ],
+            labelsVisible: false,
+            popupEnabled: true,
+            popupTemplate: {
+              title: "Aggregate summary",
+              content: [
+                {
+                  type: "text",
+                  text: "{aggregateCount} points are within this bin."
+                }
+              ],
+              fieldInfos: [
+                {
+                  fieldName: "aggregateCount",
+                  label: "Total count",
+                  format: {
+                    places: 0,
+                    digitSeparator: true
+                  }
+                }
+              ]
+            },
+            renderer: {
+              type: "simple",
+              symbol: {
+                type: "simple-fill"
+              }
+            }
+          };
+
+          return featureReduction;
+        }
+
+        function getStandardDeviation(array) {
+          const n = array.length;
+          const mean = array.reduce((a, b) => a + b) / n;
+          return Math.sqrt(array.map(x => Math.pow(x - mean, 2)).reduce((a, b) => a + b) / n);
+        }
+
+        function getAverage(array) {
+          const n = array.length;
+          const mean = array.reduce((a, b) => a + b) / n
+          return mean;
+        }
+
+        const rendererStopsSelect = document.getElementById("rendererStopsSelect");
+        rendererStopsSelect.disabled = true;
+
+        const referenceSizeStatsSelect = document.getElementById("referenceSizeStats");
+        let referenceSizeDataValue = null;
+
+        let sizeSlider = null;
+        let colorSlider = null;
+        let symbolSizeSlider = null;
+
+        let min, max, minBound, maxBound, binSizePixels, isGrid, field, normalizationField;
+
+        function updateSizeSlider(stats, sizeStops, referenceScale) {
+          const { min, max, avg, stddev, minBound, maxBound, histogramResult } = stats;
+
+          if (!sizeSlider) {
+            sizeSlider = new SizeSlider({
+              min,
+              max,
+              stops: sizeStops,
+              histogramConfig: {
+                bins: histogramResult.bins,
+                average: avg,
+                standardDeviation: stddev,
+                standardDeviationCount: 2
               },
-              renderer: {
-                type: "simple",
-                symbol: {
-                  type: "simple-fill"
-                }
+              container: "sizeSlider"
+            });
+
+            sizeSlider.on(["segment-drag", "thumb-change", "thumb-drag"], async (event) => {
+
+              const sizeStops = sizeSlider.stops;
+              const renderer = await updateSizeRendererWithReferenceSize({
+                view, layer, field, normalizationField, sizeStops
+              });
+
+              if (layer.featureReduction) {
+                const featureReduction = layer.featureReduction.clone();
+                featureReduction.renderer = renderer;
+                layer.featureReduction = featureReduction;
+              } else {
+                layer.renderer = renderer;
               }
+            });
+
+            let previousScale = view.scale;
+            view.watch("scale", async (scale) => {
+              const scaleFactor = previousScale / scale;
+              sizeSlider.stops.forEach((stop) => {
+                stop.size *= scaleFactor;
+              });
+              previousScale = scale;
+            });
+          } else {
+            sizeSlider.set({
+              min,
+              max,
+              stops: sizeStops,
+              histogramConfig: {
+                bins: histogramResult.bins,
+                average: avg,
+                standardDeviation: stddev,
+                standardDeviationCount: 2
+              }
+            });
+          }
+        }
+
+        const symbolSizesContainer = document.getElementById("symbol-sizes");
+
+        function updateSymbolSizeSlider(sizeStops) {
+          const minSize = Math.min(...sizeStops.map(stop => stop.size));
+          const maxSize = Math.max(...sizeStops.map(stop => stop.size));
+
+          if (!symbolSizeSlider) {
+            symbolSizeSlider = new Slider({
+              container: symbolSizesContainer,
+              values: [minSize, maxSize],
+              min: 1,
+              max: 60,
+              steps: 0.5,
+              labelInputsEnabled: true,
+              rangeLabelInputsEnabled: true,
+              visibleElements: {
+                rangeLabels: true,
+                labels: true
+              }
+            });
+
+            symbolSizeSlider.on(["segment-drag", "thumb-change", "thumb-drag"], async () => {
+              const values = symbolSizeSlider.values;
+              const minSize = Math.min(...values);
+              const maxSize = Math.max(...values);
+
+              const sizeStops = sizeSlider.stops;
+              sizeStops[0].size = minSize;
+              sizeStops[1].size = maxSize;
+
+              const renderer = await updateSizeRendererWithReferenceSize({
+                view, layer, field, normalizationField, sizeStops
+              });
+
+              if (layer.featureReduction) {
+                const featureReduction = layer.featureReduction.clone();
+                featureReduction.renderer = renderer;
+                layer.featureReduction = featureReduction;
+              } else {
+                layer.renderer = renderer;
+              }
+            });
+
+            let previousScale = view.scale;
+            view.watch("scale", async (scale) => {
+              const scaleFactor = previousScale / scale;
+
+              const values = symbolSizeSlider.values;
+              const minSize = Math.min(...values) * scaleFactor;
+              const maxSize = Math.max(...values) * scaleFactor;
+
+              symbolSizeSlider.values = [minSize, maxSize];
+
+              const sizeStops = sizeSlider.stops;
+              sizeStops[0].size = minSize;
+              sizeStops[1].size = maxSize;
+
+              previousScale = scale;
+            });
+
+          } else {
+            symbolSizeSlider.values = [minSize, maxSize];
+          }
+        }
+
+        const colorSliderContainer = document.getElementById("colorSliderContainer");
+
+        function updateColorSlider(vv, stats, histogramResult) {
+
+          if (colorSlider && !vv) {
+            colorSlider.destroy();
+            colorSlider.container = null;
+            colorSlider = null;
+            return;
+          }
+
+          if (!vv || !stats || !histogram) {
+            return;
+          }
+
+          const { min, max, avg, stddev } = stats;
+          const theme = colorThemeSelect.value;
+          const primaryHandleEnabled = theme === "above-and-below" || theme === "extremes" || theme === "centered-on";
+          const handlesSyncedToPrimary = false;
+          const syncedSegmentsEnabled = true;
+          const visibleElements = {
+            interactiveTrack: true
+          };
+
+          if (!colorSlider) {
+            colorSlider = new ColorSlider({
+              primaryHandleEnabled,
+              handlesSyncedToPrimary,
+              syncedSegmentsEnabled,
+              visibleElements,
+              min,
+              max,
+              stops: vv.stops,
+              histogramConfig: {
+                bins: histogramResult.bins,
+                average: avg,
+                standardDeviation: stddev,
+                standardDeviationCount: 2
+              },
+              container: document.createElement("div")
+            });
+
+            colorSliderContainer.appendChild(colorSlider.container);
+
+            colorSlider.on(["segment-drag", "thumb-change", "thumb-drag"], async (event) => {
+              const forBinning = Boolean(layer.featureReduction);
+              const renderer = forBinning ? layer.featureReduction?.renderer.clone() : layer.renderer.clone();
+
+              const colorVariable = getColorVariable(renderer);
+
+              if (colorVariable) {
+                colorVariable.stops = colorSlider.stops;
+                renderer.visualVariables = [colorVariable];
+              }
+
+              if (forBinning) {
+                const featureReduction = layer.featureReduction.clone();
+                featureReduction.renderer = renderer;
+                layer.featureReduction = featureReduction;
+              } else {
+                layer.renderer = renderer;
+              }
+            });
+          } else {
+            colorSlider.set({
+              primaryHandleEnabled,
+              min,
+              max,
+              stops: vv.stops,
+              histogramConfig: {
+                bins: histogramResult.bins,
+                average: avg,
+                standardDeviation: stddev,
+                standardDeviationCount: 2
+              }
+            });
+          }
+        }
+
+        function getColorVariable(renderer) {
+          if (renderer.visualVariables && renderer.visualVariables.length) {
+            const colorVariable = renderer.visualVariables.filter(vv => vv.type === "color")[0];
+            return colorVariable;
+          }
+          return null;
+        }
+
+        async function getBinSizePixels(params) {
+          const { layer, view, forBinning } = params;
+          const layerView = await view.whenLayerView(layer);
+
+          if (forBinning) {
+            // For binned layers
+            const binGraphicsResponse = await layerView.queryAggregates();
+            const binGraphics = binGraphicsResponse.features;
+
+            if (binGraphics.length === 0) {
+              return 1;
+            }
+
+            const sampleBin = binGraphics[Math.floor(binGraphics.length * 0.5)]?.geometry;
+
+            const sampleBinWidth = sampleBin.extent.width;
+            const sampleBinHeight = sampleBin.extent.height;
+
+            const binSize = sampleBinWidth < sampleBinHeight ? sampleBinWidth : sampleBinHeight;
+            const maxSize = binSize / view.resolution;
+
+            return {
+              maxSize,
+              isGrid: true
             };
+          } else {
+            // For polygon layers
+            const layerGraphicsResponse = await layerView.queryFeatures();
+            const layerGraphics = layerGraphicsResponse.features;
 
-            return featureReduction;
-          }
+            const aspectRatios = layerGraphics.map((feature) => {
+              const extent = feature?.geometry?.extent;
+              if (!extent) { return null }
+              return extent.width / extent.height;
+            });
 
-          function getStandardDeviation (array) {
-            const n = array.length;
-            const mean = array.reduce((a, b) => a + b) / n;
-            return Math.sqrt(array.map(x => Math.pow(x - mean, 2)).reduce((a, b) => a + b) / n);
-          }
+            const sizes = layerGraphics.map((feature) => {
+              const extent = feature?.geometry?.extent;
+              if (!extent) { return null }
+              return Math.sqrt(extent.width * extent.height);
+            });
 
-          function getAverage (array) {
-            const n = array.length;
-            const mean = array.reduce((a, b) => a + b) / n
-            return mean;
-          }
-
-          const rendererStopsSelect = document.getElementById("rendererStopsSelect");
-          rendererStopsSelect.disabled = true;
-
-          const referenceSizeStatsSelect = document.getElementById("referenceSizeStats");
-          let referenceSizeDataValue = null;
-
-          let sizeSlider = null;
-          let colorSlider = null;
-          let symbolSizeSlider = null;
-
-          let min, max, minBound, maxBound, binSizePixels, isGrid, field, normalizationField;
-
-          function updateSizeSlider(stats, sizeStops, referenceScale) {
-            const { min, max, avg, stddev, minBound, maxBound, histogramResult } = stats;
-
-            if(!sizeSlider){
-              sizeSlider = new SizeSlider({
-                min,
-                max,
-                stops: sizeStops,
-                histogramConfig: {
-                  bins: histogramResult.bins,
-                  average: avg,
-                  standardDeviation: stddev,
-                  standardDeviationCount: 2
-                },
-                container: "sizeSlider"
-              });
-
-              sizeSlider.on(["segment-drag", "thumb-change", "thumb-drag"], async (event) => {
-
-                const sizeStops = sizeSlider.stops;
-                const renderer = await updateSizeRendererWithReferenceSize({
-                  view, layer, field, normalizationField, sizeStops
-                });
-
-                if(layer.featureReduction){
-                  const featureReduction = layer.featureReduction.clone();
-                  featureReduction.renderer = renderer;
-                  layer.featureReduction = featureReduction;
-                } else {
-                  layer.renderer = renderer;
-                }
-              });
-
-              let previousScale = view.scale;
-              view.watch("scale", async (scale) => {
-                const scaleFactor = previousScale / scale;
-                sizeSlider.stops.forEach((stop) => {
-                  stop.size *= scaleFactor;
-                });
-                previousScale = scale;
-              });
-            } else {
-              sizeSlider.set({
-                min,
-                max,
-                stops: sizeStops,
-                histogramConfig: {
-                  bins: histogramResult.bins,
-                  average: avg,
-                  standardDeviation: stddev,
-                  standardDeviationCount: 2
-                }
-              });
-            }
-          }
-
-          const symbolSizesContainer = document.getElementById("symbol-sizes");
-
-          function updateSymbolSizeSlider(sizeStops){
-            const minSize = Math.min(...sizeStops.map(stop => stop.size));
-            const maxSize = Math.max(...sizeStops.map(stop => stop.size));
-
-            if(!symbolSizeSlider){
-              symbolSizeSlider = new Slider({
-                container: symbolSizesContainer,
-                values: [minSize, maxSize],
-                min: 1,
-                max: 60,
-                steps: 0.5,
-                labelInputsEnabled: true,
-                rangeLabelInputsEnabled: true,
-                visibleElements: {
-                  rangeLabels: true,
-                  labels: true
-                }
-              });
-
-              symbolSizeSlider.on(["segment-drag", "thumb-change", "thumb-drag"], async () => {
-                const values = symbolSizeSlider.values;
-                const minSize = Math.min(...values);
-                const maxSize = Math.max(...values);
-
-                const sizeStops = sizeSlider.stops;
-                sizeStops[0].size = minSize;
-                sizeStops[1].size = maxSize;
-
-                const renderer = await updateSizeRendererWithReferenceSize({
-                  view, layer, field, normalizationField, sizeStops
-                });
-
-                if(layer.featureReduction){
-                  const featureReduction = layer.featureReduction.clone();
-                  featureReduction.renderer = renderer;
-                  layer.featureReduction = featureReduction;
-                } else {
-                  layer.renderer = renderer;
-                }
-              });
-
-              let previousScale = view.scale;
-              view.watch("scale", async (scale) => {
-                const scaleFactor = previousScale / scale;
-
-                const values = symbolSizeSlider.values;
-                const minSize = Math.min(...values) * scaleFactor;
-                const maxSize = Math.max(...values) * scaleFactor;
-
-                symbolSizeSlider.values = [ minSize, maxSize ];
-
-                const sizeStops = sizeSlider.stops;
-                sizeStops[0].size = minSize;
-                sizeStops[1].size = maxSize;
-
-                previousScale = scale;
-              });
-
-            } else {
-              symbolSizeSlider.values = [ minSize, maxSize ];
-            }
-          }
-
-          const colorSliderContainer = document.getElementById("colorSliderContainer");
-
-          function updateColorSlider(vv, stats, histogramResult) {
-
-            if(colorSlider && !vv){
-              colorSlider.destroy();
-              colorSlider.container = null;
-              colorSlider = null;
-              return;
+            if (layerGraphics.length === 0) {
+              return 1;
             }
 
-            if(!vv || !stats || !histogram){
-              return;
-            }
+            const { minSize: polygonMinSize, maxSize: polygonMaxSize, avgSize } = await spatialStatistics({
+              features: layerGraphics,
+              geometryType: "polygon"
+            });
 
-            const { min, max, avg, stddev } = stats;
-            const theme = colorThemeSelect.value;
-            const primaryHandleEnabled = theme === "above-and-below" || theme === "extremes" || theme === "centered-on";
-            const handlesSyncedToPrimary = false;
-            const syncedSegmentsEnabled = true;
-            const visibleElements = {
-              interactiveTrack: true
-            };
+            const stddevAspectRatios = getStandardDeviation(aspectRatios);
+            const avgAspectRatios = getAverage(aspectRatios);
+            const stddevSizes = getStandardDeviation(sizes);
+            const coefficientVariation = stddevSizes / avgSize;
 
-            if(!colorSlider){
-              colorSlider = new ColorSlider({
-                primaryHandleEnabled,
-                handlesSyncedToPrimary,
-                syncedSegmentsEnabled,
-                visibleElements,
-                min,
-                max,
-                stops: vv.stops,
-                histogramConfig: {
-                  bins: histogramResult.bins,
-                  average: avg,
-                  standardDeviation: stddev,
-                  standardDeviationCount: 2
-                },
-                container: document.createElement("div")
-              });
+            console.log("Aspect Ratio - μ: ", avgAspectRatios);
+            console.log("Aspect Ratio - σ: ", stddevAspectRatios);
+            // console.log("Size - min: ", polygonMinSize);
+            // console.log("Size - μ: ", avgSize);
+            // console.log("Size - σ: ", stddevSizes);
+            // console.log("Size - max: ", polygonMaxSize);
+            // console.log("Size - range: ", polygonMaxSize - polygonMinSize);
+            console.log("Size - coefficient of variation: ", coefficientVariation);
 
-              colorSliderContainer.appendChild(colorSlider.container);
+            const sizeThreshold = 0.1;
+            const aspectRatioAvgThreshold = 0.25;
+            const aspectRatioStdDevThreshold = 0.1;  // 0.25
+            const coefficientVariationThreshold = 0.1;
 
-              colorSlider.on(["segment-drag", "thumb-change", "thumb-drag"], async (event) => {
-                const forBinning = Boolean(layer.featureReduction);
-                const renderer = forBinning ? layer.featureReduction?.renderer.clone() : layer.renderer.clone();
-
-                const colorVariable = getColorVariable(renderer);
-
-                if(colorVariable){
-                  colorVariable.stops = colorSlider.stops;
-                  renderer.visualVariables = [ colorVariable ];
-                }
-
-                if(forBinning){
-                  const featureReduction = layer.featureReduction.clone();
-                  featureReduction.renderer = renderer;
-                  layer.featureReduction = featureReduction;
-                } else {
-                  layer.renderer = renderer;
-                }
-              });
-            } else {
-              colorSlider.set({
-                primaryHandleEnabled,
-                min,
-                max,
-                stops: vv.stops,
-                histogramConfig: {
-                  bins: histogramResult.bins,
-                  average: avg,
-                  standardDeviation: stddev,
-                  standardDeviationCount: 2
-                }
-              });
-            }
-          }
-
-          function getColorVariable(renderer){
-            if(renderer.visualVariables && renderer.visualVariables.length){
-              const colorVariable = renderer.visualVariables.filter(vv => vv.type === "color")[0];
-              return colorVariable;
-            }
-            return null;
-          }
-
-          async function getBinSizePixels(params){
-            const { layer, view, forBinning } = params;
-            const layerView = await view.whenLayerView(layer);
-
-            if(forBinning){
-              // For binned layers
-              const binGraphicsResponse = await layerView.queryAggregates();
-              const binGraphics = binGraphicsResponse.features;
-
-              if(binGraphics.length === 0){
-                return 1;
-              }
-
-              const sampleBin = binGraphics[Math.floor(binGraphics.length * 0.5)]?.geometry;
-
-              const sampleBinWidth = sampleBin.extent.width;
-              const sampleBinHeight = sampleBin.extent.height;
-
-              const binSize = sampleBinWidth < sampleBinHeight ? sampleBinWidth : sampleBinHeight;
-              const binSizePixels = binSize / view.resolution;
-
-              return {
-                binSizePixels,
-                isGrid: true
-              };
-            } else {
-              // For polygon layers
-              const layerGraphicsResponse = await layerView.queryFeatures();
-              const layerGraphics = layerGraphicsResponse.features;
-
-              const aspectRatios = layerGraphics.map((feature) => {
-                const extent = feature?.geometry?.extent;
-                if(!extent){ return null }
-                return extent.width / extent.height;
-              });
-
-              const sizes = layerGraphics.map((feature) => {
-                const extent = feature?.geometry?.extent;
-                if(!extent){ return null }
-                return Math.sqrt(extent.width * extent.height);
-              });
-
-              if(layerGraphics.length === 0){
-                return 1;
-              }
-
-              const { minSize, maxSize, avgSize } = await spatialStatistics({
-                features: layerGraphics,
-                geometryType: "polygon"
-              });
-
-              const stddevAspectRatios = getStandardDeviation(aspectRatios);
-              const avgAspectRatios = getAverage(aspectRatios);
-              const stddevSizes = getStandardDeviation(sizes);
-              const coefficientVariation = stddevSizes / avgSize;
-
-              console.log("Aspect Ratio - μ: ", avgAspectRatios);
-              console.log("Aspect Ratio - σ: ", stddevAspectRatios);
-              // console.log("Size - min: ", minSize);
-              // console.log("Size - μ: ", avgSize);
-              // console.log("Size - σ: ", stddevSizes);
-              // console.log("Size - max: ", maxSize);
-              // console.log("Size - range: ", maxSize - minSize);
-              console.log("Size - coefficient of variation: ", coefficientVariation);
-
-              const sizeThreshold = 0.1;
-              const aspectRatioAvgThreshold = 0.25;
-              const aspectRatioStdDevThreshold = 0.1;  // 0.25
-              const coefficientVariationThreshold = 0.1;
-
-              const isGrid =
-                ( stddevAspectRatios < aspectRatioStdDevThreshold &&
+            const isGrid =
+              (stddevAspectRatios < aspectRatioStdDevThreshold &&
                 (avgAspectRatios > (1 - aspectRatioAvgThreshold) && avgAspectRatios < (1 + aspectRatioAvgThreshold)) &&
-                coefficientVariation < coefficientVariationThreshold );
-              const binSize =
-                isGrid ? avgSize * (1-sizeThreshold) : avgSize * 0.25;
-              const binSizePixels = binSize / view.resolution;
+                coefficientVariation < coefficientVariationThreshold);
+            const binSize =
+              isGrid ? avgSize * (1 - sizeThreshold) : avgSize * 0.25;
+            const maxSize = binSize / view.resolution;
 
-              return {
-                binSizePixels,
-                isGrid
-              };
-            }
+            return {
+              maxSize,
+              isGrid
+            };
           }
+        }
 
-          function getPrimitiveOverrides(params){
-            const { view, field, normalizationField, sizeStops, sizeByScaleEnabled } = params;
-            const minDataValue = sizeStops[0].value;
-            const maxDataValue = sizeStops[1].value;
-            const minSize = sizeStops[0].size;
-            const maxSize = sizeStops[1].size;
+        function getPrimitiveOverrides(params) {
+          const { view, field, normalizationField, sizeStops, sizeByScaleEnabled } = params;
+          const minDataValue = sizeStops[0].value;
+          const maxDataValue = sizeStops[1].value;
+          const minSize = sizeStops[0].size;
+          const maxSize = sizeStops[1].size;
 
-            let value;
-            let fields;
+          let value;
+          let fields;
 
-            if(!field){
-              value = 0;
-            } else {
-              value = `$feature.${field}`;
-              fields = `
+          if (!field) {
+            value = 0;
+          } else {
+            value = `$feature.${field}`;
+            fields = `
                 if(!HasKey($feature, "${field}")){
                   return null;
                 }
                 $feature.${field};
               `;
-            }
+          }
 
-            if(normalizationField){
-              value = `$feature.${field} / $feature.${normalizationField}`;
-              fields = `
+          if (normalizationField) {
+            value = `$feature.${field} / $feature.${normalizationField}`;
+            fields = `
                 if(!HasKey($feature, "${field}") || !HasKey($feature, "${normalizationField}")){
                   return null;
                 }
                 $feature.${field};
                 $feature.${normalizationField};
               `;
-            }
+          }
 
-            const outerRingExpressionInfo = {
-              type: "CIMExpressionInfo",
-              title: "Size in pixels of outer ring at maxScale",
-              // We shouldn't have to convert to points since maxSize will likely already be in points...
-              expression: sizeByScaleEnabled ? `
+          const outerRingExpressionInfo = {
+            type: "CIMExpressionInfo",
+            title: "Size in pixels of outer ring at maxScale",
+            // We shouldn't have to convert to points since maxSize will likely already be in points...
+            expression: sizeByScaleEnabled ? `
                 var maxSize = ${maxSize};
                 return (maxSize * (${view.scale} / $view.scale)) * 0.75;
               ` : `${maxSize} * 0.75`,
-              returnType: "Default"
-            };
+            returnType: "Default"
+          };
 
-            let primitiveOverrides = [
-              {
-                type: "CIMPrimitiveOverride",
-                primitiveName: "outerRing",
-                propertyName: "Size",
-                valueExpressionInfo: outerRingExpressionInfo
-              },
-              {
-                type: "CIMPrimitiveOverride",
-                primitiveName: "innerDot",
-                propertyName: "Size",
-                valueExpressionInfo: {
-                  type: "CIMExpressionInfo",
-                  title: "Size in pixels of inner ring at maxScale",
-                  // outerSize is the pixel size at the largest scale
-                  // The innerSize is determined by multiplying
-                  // the outerSize by the forest ratio
-                  expression: `
+          let primitiveOverrides = [
+            {
+              type: "CIMPrimitiveOverride",
+              primitiveName: "outerRing",
+              propertyName: "Size",
+              valueExpressionInfo: outerRingExpressionInfo
+            },
+            {
+              type: "CIMPrimitiveOverride",
+              primitiveName: "innerDot",
+              propertyName: "Size",
+              valueExpressionInfo: {
+                type: "CIMExpressionInfo",
+                title: "Size in pixels of inner ring at maxScale",
+                // outerSize is the pixel size at the largest scale
+                // The innerSize is determined by multiplying
+                // the outerSize by the forest ratio
+                expression: `
                     ${fields}
                     var value = ${value};
 
                     var maxSize = ${maxSize};
                     var minDataValue = ${minDataValue};
                     var maxDataValue = ${maxDataValue};
-                    var ratio = ( value - minDataValue) / (maxDataValue - minDataValue);
+                    var ratio = ( value - minDataValue) / (maxDataValue - minDataValue );
 
                     var innerRatio = Constrain(ratio, 0, 1);
-                    var referenceScaleRatio = ${sizeByScaleEnabled ? `(${view.scale} / $view.scale)`: 1};
+                    var referenceScaleRatio = ${sizeByScaleEnabled ? `(${view.scale} / $view.scale)` : 1};
                     var outerSize = maxSize * referenceScaleRatio;
                     var innerSize = Constrain((outerSize * innerRatio) + ${minSize}, 0, outerSize);
                     // pixel to point conversion
                     return innerSize * 0.75;
                   `,
-                  returnType: "Default"
-                }
+                returnType: "Default"
               }
-            ];
+            }
+          ];
 
-            return primitiveOverrides;
-          }
+          return primitiveOverrides;
+        }
 
-          function createSymbolGeometry(type){
-            const circle = {
-              rings: [
-                [
-                  [8.5, 0.2],
-                  [7.06, 0.33],
-                  [5.66, 0.7],
-                  [4.35, 1.31],
-                  [3.16, 2.14],
-                  [2.14, 3.16],
-                  [1.31, 4.35],
-                  [0.7, 5.66],
-                  [0.33, 7.06],
-                  [0.2, 8.5],
-                  [0.33, 9.94],
-                  [0.7, 11.34],
-                  [1.31, 12.65],
-                  [2.14, 13.84],
-                  [3.16, 14.86],
-                  [4.35, 15.69],
-                  [5.66, 16.3],
-                  [7.06, 16.67],
-                  [8.5, 16.8],
-                  [9.94, 16.67],
-                  [11.34, 16.3],
-                  [12.65, 15.69],
-                  [13.84, 14.86],
-                  [14.86, 13.84],
-                  [15.69, 12.65],
-                  [16.3, 11.34],
-                  [16.67, 9.94],
-                  [16.8, 8.5],
-                  [16.67, 7.06],
-                  [16.3, 5.66],
-                  [15.69, 4.35],
-                  [14.86, 3.16],
-                  [13.84, 2.14],
-                  [12.65, 1.31],
-                  [11.34, 0.7],
-                  [9.94, 0.33],
-                  [8.5, 0.2]
-                ]
+        function createSymbolGeometry(type) {
+          const circle = {
+            rings: [
+              [
+                [8.5, 0.2],
+                [7.06, 0.33],
+                [5.66, 0.7],
+                [4.35, 1.31],
+                [3.16, 2.14],
+                [2.14, 3.16],
+                [1.31, 4.35],
+                [0.7, 5.66],
+                [0.33, 7.06],
+                [0.2, 8.5],
+                [0.33, 9.94],
+                [0.7, 11.34],
+                [1.31, 12.65],
+                [2.14, 13.84],
+                [3.16, 14.86],
+                [4.35, 15.69],
+                [5.66, 16.3],
+                [7.06, 16.67],
+                [8.5, 16.8],
+                [9.94, 16.67],
+                [11.34, 16.3],
+                [12.65, 15.69],
+                [13.84, 14.86],
+                [14.86, 13.84],
+                [15.69, 12.65],
+                [16.3, 11.34],
+                [16.67, 9.94],
+                [16.8, 8.5],
+                [16.67, 7.06],
+                [16.3, 5.66],
+                [15.69, 4.35],
+                [14.86, 3.16],
+                [13.84, 2.14],
+                [12.65, 1.31],
+                [11.34, 0.7],
+                [9.94, 0.33],
+                [8.5, 0.2]
               ]
-            };
-
-            const square = {
-              rings: [
-                [
-                  [0.5, 0.5],
-                  [0.5, 16.5],
-                  [16.5, 16.5],
-                  [16.5, 0.5],
-                  [0.5, 0.5]
-                ]
-              ]
-            };
-
-            const squareDiamond = {
-              rings: [
-                [
-                  [8.5, 0.5],
-                  [0.2, 8.5],
-                  [8.5, 16.5],
-                  [16.5, 8.5],
-                  [8.5, 0.5]
-                ]
-              ]
-            };
-
-            const triangle = {
-              rings: [
-                [
-                  [0.5, 0.5],
-                  [8.5, 16.5],
-                  [16.5, 0.5],
-                  [0.5, 0.5]
-                ]
-              ]
-            };
-
-            const diamond = {
-              rings: [
-                [
-                  [
-                    13.35,
-                    8.48
-                  ],
-                  [
-                    8.5,
-                    0
-                  ],
-                  [
-                    3.65,
-                    8.48
-                  ],
-                  [
-                    8.5,
-                    17
-                  ],
-                  [
-                    13.35,
-                    8.48
-                  ]
-                ]
-              ]
-            };
-
-            const hexagon = {
-              "rings": [
-                [
-                  [
-                    12.75,
-                    15.86
-                  ],
-                  [
-                    17,
-                    8.5
-                  ],
-                  [
-                    12.75,
-                    1.14
-                  ],
-                  [
-                    4.25,
-                    1.14
-                  ],
-                  [
-                    0,
-                    8.5
-                  ],
-                  [
-                    4.25,
-                    15.86
-                  ],
-                  [
-                    12.75,
-                    15.86
-                  ]
-                ]
-              ]
-            };
-
-            const pentagon = {
-              "rings": [
-                [
-                  [
-                    17,
-                    10.01
-                  ],
-                  [
-                    13.75,
-                    0
-                  ],
-                  [
-                    3.25,
-                    0
-                  ],
-                  [
-                    0,
-                    10.01
-                  ],
-                  [
-                    8.49,
-                    16.19
-                  ],
-                  [
-                    17,
-                    10.01
-                  ]
-                ]
-              ]
-            };
-
-            const star = {
-              "rings": [
-                [
-                  [
-                    17,
-                    10.89
-                  ],
-                  [
-                    11.77,
-                    6.79
-                  ],
-                  [
-                    13.85,
-                    0.34
-                  ],
-                  [
-                    8.38,
-                    4.35
-                  ],
-                  [
-                    3.12,
-                    0.4
-                  ],
-                  [
-                    5.17,
-                    6.79
-                  ],
-                  [
-                    0,
-                    10.89
-                  ],
-                  [
-                    6.45,
-                    10.89
-                  ],
-                  [
-                    8.38,
-                    16.66
-                  ],
-                  [
-                    10.31,
-                    10.89
-                  ],
-                  [
-                    17,
-                    10.89
-                  ]
-                ]
-              ]
-            };
-
-
-            const heptagon = {
-              rings: [
-                  [
-                      [
-                          8.27,
-                          16.94
-                      ],
-                      [
-                          8.33,
-                          16.98
-                      ],
-                      [
-                          8.41,
-                          17
-                      ],
-                      [
-                          8.5,
-                          17
-                      ],
-                      [
-                          8.58,
-                          17
-                      ],
-                      [
-                          8.67,
-                          16.98
-                      ],
-                      [
-                          8.73,
-                          16.94
-                      ],
-                      [
-                          15.13,
-                          13.79
-                      ],
-                      [
-                          15.41,
-                          13.43
-                      ],
-                      [
-                          16.98,
-                          6.33
-                      ],
-                      [
-                          17,
-                          6.25
-                      ],
-                      [
-                          17,
-                          6.18
-                      ],
-                      [
-                          16.98,
-                          6.1
-                      ],
-                      [
-                          16.96,
-                          6.03
-                      ],
-                      [
-                          16.94,
-                          5.95
-                      ],
-                      [
-                          16.89,
-                          5.89
-                      ],
-                      [
-                          12.47,
-                          0.21
-                      ],
-                      [
-                          12.05,
-                          0
-                      ],
-                      [
-                          4.95,
-                          0
-                      ],
-                      [
-                          4.87,
-                          0
-                      ],
-                      [
-                          4.8,
-                          0.02
-                      ],
-                      [
-                          4.72,
-                          0.06
-                      ],
-                      [
-                          4.65,
-                          0.09
-                      ],
-                      [
-                          4.59,
-                          0.15
-                      ],
-                      [
-                          4.53,
-                          0.21
-                      ],
-                      [
-                          0.11,
-                          5.89
-                      ],
-                      [
-                          0.02,
-                          6.33
-                      ],
-                      [
-                          1.59,
-                          13.43
-                      ],
-                      [
-                          1.62,
-                          13.49
-                      ],
-                      [
-                          1.66,
-                          13.58
-                      ],
-                      [
-                          1.7,
-                          13.64
-                      ],
-                      [
-                          1.74,
-                          13.71
-                      ],
-                      [
-                          1.81,
-                          13.75
-                      ],
-                      [
-                          1.87,
-                          13.79
-                      ],
-                      [
-                          8.27,
-                          16.94
-                      ],
-                      [
-                          8.27,
-                          16.94
-                      ]
-                  ]
-                ]
-              };
-
-            const decagon = {
-              "rings": [
-                  [
-                      [
-                          11.12,
-                          0.04
-                      ],
-                      [
-                          15.34,
-                          3.12
-                      ],
-                      [
-                          16.96,
-                          8.09
-                      ],
-                      [
-                          15.34,
-                          13.06
-                      ],
-                      [
-                          11.12,
-                          16.14
-                      ],
-                      [
-                          5.88,
-                          16.14
-                      ],
-                      [
-                          1.66,
-                          13.06
-                      ],
-                      [
-                          0.04,
-                          8.09
-                      ],
-                      [
-                          1.66,
-                          3.12
-                      ],
-                      [
-                          5.88,
-                          0.04
-                      ],
-                      [
-                          11.12,
-                          0.04
-                      ]
-                  ]
-              ]
+            ]
           };
 
-            const shapeMap = {
-              circle,
-              square,
-              triangle,
-              diamond,
-              squareDiamond,
-              hexagon,
-              pentagon,
-              star,
-              heptagon,
-              decagon
-            };
+          const square = {
+            rings: [
+              [
+                [0.5, 0.5],
+                [0.5, 16.5],
+                [16.5, 16.5],
+                [16.5, 0.5],
+                [0.5, 0.5]
+              ]
+            ]
+          };
 
-            return shapeMap[type];
-          }
+          const diamond = {
+            rings: [
+              [
+                [8.5, 0.5],
+                [0.2, 8.5],
+                [8.5, 16.5],
+                [16.5, 8.5],
+                [8.5, 0.5]
+              ]
+            ]
+          };
 
-          function createWurmanSymbol({ shape, color, primitiveOverrides, colorLocked }){
-            return {
-              type: "cim",
-              data: {
-                type: "CIMSymbolReference",
-                symbol: {
-                  type: "CIMPolygonSymbol",
-                  symbolLayers: [
-                    {
-                      type: "CIMVectorMarker",
-                      enable: true,
-                      colorLocked: false,
-                      anchorPoint: { x: 0, y: 0 },
-                      anchorPointUnits: "Relative",
-                      primitiveName: "outerRing",
-                      frame: { xmin: 0.0, ymin: 0.0, xmax: 17.0, ymax: 17.0 },
-                      markerGraphics: [
-                        {
-                          type: "CIMMarkerGraphic",
-                          geometry: createSymbolGeometry(shape),
-                          symbol: {
-                            type: "CIMPolygonSymbol",
-                            symbolLayers: [
-                              {
-                                type: "CIMSolidFill",
-                                enable: true,
-                                color: color.toJSON(),
-                                colorLocked,
-                                primitiveName: colorLocked ? "grayRing" : "symbolFill",
-                                width: 1.5,
-                                effects: [{
-                                  type: "CIMGeometricEffectDonut",
-                                  width: 0.75
-                                }]
-                              }
-                            ]
-                          }
+          const hexagonPointy = {
+            "rings": [
+              [[15.86, 12.75], [15.86, 4.25], [8.5, 0], [1.14, 4.25], [1.14, 12.75], [8.5, 17], [15.86, 12.75]]
+            ]
+          };
+
+          const hexagonFlat = {
+            "rings": [
+              [
+                [
+                  12.75,
+                  15.86
+                ],
+                [
+                  17,
+                  8.5
+                ],
+                [
+                  12.75,
+                  1.14
+                ],
+                [
+                  4.25,
+                  1.14
+                ],
+                [
+                  0,
+                  8.5
+                ],
+                [
+                  4.25,
+                  15.86
+                ],
+                [
+                  12.75,
+                  15.86
+                ]
+              ]
+            ]
+          };
+
+          const shapeMap = {
+            circle,
+            square,
+            diamond,
+            hexagonPointy,
+            hexagonFlat
+          };
+
+          return shapeMap[type];
+        }
+
+        function createWurmanSymbol({ shape, color, primitiveOverrides, colorLocked }) {
+          return {
+            type: "cim",
+            data: {
+              type: "CIMSymbolReference",
+              symbol: {
+                type: "CIMPolygonSymbol",
+                symbolLayers: [
+                  {
+                    type: "CIMVectorMarker",
+                    enable: true,
+                    colorLocked: false,
+                    anchorPoint: { x: 0, y: 0 },
+                    anchorPointUnits: "Relative",
+                    primitiveName: "outerRing",
+                    frame: { xmin: 0.0, ymin: 0.0, xmax: 17.0, ymax: 17.0 },
+                    markerGraphics: [
+                      {
+                        type: "CIMMarkerGraphic",
+                        geometry: createSymbolGeometry(shape),
+                        symbol: {
+                          type: "CIMPolygonSymbol",
+                          symbolLayers: [
+                            {
+                              type: "CIMSolidFill",
+                              enable: true,
+                              color: color.toJSON(),
+                              colorLocked,
+                              primitiveName: colorLocked ? "grayRing" : "symbolFill",
+                              width: 1.5,
+                              effects: [{
+                                type: "CIMGeometricEffectDonut",
+                                width: 0.75
+                              }]
+                            }
+                          ]
                         }
-                      ],
-                      scaleSymbolsProportionally: false,
-                      respectFrame: true,
-                      markerPlacement: null
-                    },
-                    {
-                      type: "CIMVectorMarker",
-                      enable: true,
-                      anchorPoint: { x: 0, y: 0 },
-                      anchorPointUnits: "Relative",
-                      primitiveName: "innerDot",
-                      frame: { xmin: 0.0, ymin: 0.0, xmax: 17.0, ymax: 17.0 },
-                      markerGraphics: [
-                        {
-                          type: "CIMMarkerGraphic",
-                          geometry: createSymbolGeometry(shape),
-                          symbol: {
-                            type: "CIMPolygonSymbol",
-                            symbolLayers: [
-                              {
-                                type: "CIMSolidFill",
-                                enable: true,
-                                color: color.toJSON(),
-                                primitiveName: "symbolFill"
-                              }
-                            ]
-                          }
+                      }
+                    ],
+                    scaleSymbolsProportionally: false,
+                    respectFrame: true,
+                    markerPlacement: null
+                  },
+                  {
+                    type: "CIMVectorMarker",
+                    enable: true,
+                    anchorPoint: { x: 0, y: 0 },
+                    anchorPointUnits: "Relative",
+                    primitiveName: "innerDot",
+                    frame: { xmin: 0.0, ymin: 0.0, xmax: 17.0, ymax: 17.0 },
+                    markerGraphics: [
+                      {
+                        type: "CIMMarkerGraphic",
+                        geometry: createSymbolGeometry(shape),
+                        symbol: {
+                          type: "CIMPolygonSymbol",
+                          symbolLayers: [
+                            {
+                              type: "CIMSolidFill",
+                              enable: true,
+                              color: color.toJSON(),
+                              primitiveName: "symbolFill"
+                            }
+                          ]
                         }
-                      ],
-                      scaleSymbolsProportionally: true,
-                      respectFrame: true,
-                      markerPlacement: null
-                    }
-                  ]
-                },
-                primitiveOverrides
-              }
-            };
-          }
+                      }
+                    ],
+                    scaleSymbolsProportionally: true,
+                    respectFrame: true,
+                    markerPlacement: null
+                  }
+                ]
+              },
+              primitiveOverrides
+            }
+          };
+        }
 
-          async function createSizeRendererWithReferenceSize(params){
-            const {
+        async function createSizeRendererWithReferenceSize(params) {
+          const {
+            layer,
+            view,
+            field,
+            normalizationField,
+            minValue,
+            maxValue,
+            typeOptions,
+            vvOptions,
+            gridSize,
+            referenceSizeOptions,
+            forBinning
+          } = params;
+
+          const { symbolStyle: shape } = referenceSizeOptions;
+
+          const {
+            typeField,
+            numTypes,
+            sortBy,
+            sortEnabled
+          } = typeOptions;
+
+          const {
+            vvField,
+            vvNormalizationField,
+            theme,
+          } = vvOptions;
+
+          const statParams = {
+            layer,
+            view,
+            field,
+            normalizationField,
+            normalizationType: normalizationField ? "field" : null,
+            minValue,
+            maxValue,
+            forBinning
+          };
+
+          const { statistics: stats, renderer: sizeRenderer } = await sizeRendererCreator.createContinuousRenderer(statParams);
+
+          const histogramResult = await histogram({
+            ...statParams,
+            numBins: 60
+          });
+
+          const minSize = params.minSize ?? 0;
+
+          const defaultMin = 0;
+          const percentageMax = 100;
+          const percentageMin = 0;
+          const ratioMin = percentageMin;
+          const ratioMax = 1;
+          const mean = stats.avg;
+          const min = stats.min;
+          const max = stats.max;
+          const cv = stats.stddev / mean;
+
+          const isRatio = min > ratioMin && min < ratioMax && max < ratioMax * 2 && cv < 0.5;
+          const isPercentage = min > percentageMin && min < percentageMax && max < percentageMax * 2 && cv < 0.5;
+
+          const stddevHalf = stats.avg + (0.5 * stats.stddev);
+          const stddev1 = stats.avg + stats.stddev;
+          const stddev2 = stats.avg + (2 * stats.stddev);
+
+          const maxBoundDictionary = {
+            "min": min,
+            "mean": mean,
+            "0.5-std-dev": stddevHalf,
+            "1-std-dev": stddev1,
+            "2-std-dev": stddev2,
+            "max": max
+          };
+
+          const referenceDataValue = maxBoundDictionary["2-std-dev"];
+          referenceSizeDataValue = referenceDataValue;
+
+          const maxBound =
+            isRatio ? ratioMax :
+              isPercentage ? percentageMax :
+                maxBoundDictionary["2-std-dev"];
+
+          const minBound =
+            isRatio ? ratioMin :
+              isPercentage ? percentageMin :
+                min;
+
+          const { maxSize, isGrid } = await getBinSizePixels({ view, layer, forBinning });
+
+          let uniqueValueInfos, colorVariable, visualVariables, colorStats, colorHistogramResult;
+
+          if (vvField) {
+            const { visualVariable: colorVariable, statistics: colorStats } = await colorRendererCreator.createVisualVariable({
               layer,
               view,
-              field,
-              normalizationField,
-              minValue,
-              maxValue,
-              typeOptions,
-              vvOptions,
-              gridSize,
-              referenceSizeOptions,
-              forBinning
-            } = params;
-
-            const { symbolStyle: shape } = referenceSizeOptions;
-
-            const {
-              typeField,
-              numTypes,
-              sortBy,
-              sortEnabled
-            } = typeOptions;
-
-            const {
-              vvField,
-              vvNormalizationField,
+              field: vvField,
+              normalizationField: vvNormalizationField,
+              normalizationType: vvNormalizationField ? "field" : null,
               theme,
-            } = vvOptions;
+              forBinning
+            });
 
-            const statParams = {
+            visualVariables = [colorVariable];
+
+            colorHistogramResult = await histogram({
               layer,
               view,
-              field,
-              normalizationField,
-              normalizationType: normalizationField ? "field" : null,
-              minValue,
-              maxValue,
-              forBinning
-            };
-
-            const { statistics: stats, renderer: sizeRenderer } = await sizeRendererCreator.createContinuousRenderer(statParams);
-
-            const histogramResult = await histogram({
-              ...statParams,
+              field: vvField,
+              normalizationField: vvNormalizationField,
+              normalizationType: vvNormalizationField ? "field" : null,
+              forBinning,
               numBins: 60
             });
 
-            const minSize = params.minSize ?? 0;
-
-            const defaultMin = 0;
-            const percentageMax = 100;
-            const percentageMin = 0;
-            const ratioMin = percentageMin;
-            const ratioMax = 1;
-            const mean = stats.avg;
-            const min = stats.min;
-            const max = stats.max;
-            const cv = stats.stddev / mean;
-
-            const isRatio = min > ratioMin && min < ratioMax && max < ratioMax * 2 && cv < 0.5;
-            const isPercentage = min > percentageMin && min < percentageMax && max < percentageMax * 2 && cv < 0.5;
-
-            const stddevHalf = stats.avg + (0.5 * stats.stddev);
-            const stddev1 = stats.avg + stats.stddev;
-            const stddev2 = stats.avg + (2 * stats.stddev);
-
-            const maxBoundDictionary = {
-              "min": min,
-              "mean": mean,
-              "0.5-std-dev": stddevHalf,
-              "1-std-dev": stddev1,
-              "2-std-dev": stddev2,
-              "max": max
-            };
-
-            const referenceDataValue = maxBoundDictionary["2-std-dev"];
-            referenceSizeDataValue = referenceDataValue;
-
-            const maxBound =
-              isRatio ? ratioMax :
-              isPercentage ? percentageMax :
-              maxBoundDictionary["2-std-dev"];
-
-            const minBound =
-              isRatio ? ratioMin :
-              isPercentage ? percentageMin :
-              min;
-
-            const getBinSizePixelsResult = await getBinSizePixels({ view, layer, forBinning });
-            binSizePixels = getBinSizePixelsResult.binSizePixels;
-            isGrid = getBinSizePixelsResult.isGrid;
-
-            const maxSize = binSizePixels;
-
-            let uniqueValueInfos, colorVariable, visualVariables, colorStats, colorHistogramResult;
-
-            if( vvField ){
-              const { visualVariable: colorVariable, statistics: colorStats  } = await colorRendererCreator.createVisualVariable({
-                layer,
-                view,
-                field: vvField,
-                normalizationField: vvNormalizationField,
-                normalizationType: vvNormalizationField ? "field" : null,
-                theme,
-                forBinning
-              });
-
-              visualVariables = [ colorVariable ];
-
-              colorHistogramResult = await histogram({
-                layer,
-                view,
-                field: vvField,
-                normalizationField: vvNormalizationField,
-                normalizationType: vvNormalizationField ? "field" : null,
-                forBinning,
-                numBins: 60
-              });
-            }
-
             updateColorSlider(colorVariable, colorStats, colorHistogramResult);
-
-            const sizeStops = [
-              { value: minBound, size: minSize },
-              { value: maxBound, size: maxSize }
-            ];
-
-            const primitiveOverrides = getPrimitiveOverrides({
-              view, field, normalizationField, sizeStops, sizeByScaleEnabled: isGrid
-            });
-
-            const color = sizeRenderer?.classBreakInfos[0]?.symbol?.color;
-
-            sizeRenderer.classBreakInfos[0].symbol = createWurmanSymbol({ shape, color, primitiveOverrides, colorLocked: false });
-            sizeRenderer.visualVariables = visualVariables;
-
-            let renderer = sizeRenderer;
-
-            if(typeField){
-              const { renderer: uvr } = await typeRendererCreator.createRenderer({
-                layer,
-                view,
-                field: typeField,
-                numTypes,
-                sortBy,
-                defaultSymbolEnabled: true,
-                forBinning
-              });
-
-              uvr.uniqueValueInfos.forEach(uvi => {
-                const color = uvi?.symbol?.color || new Color("gray");
-                uvi.symbol = createWurmanSymbol({ shape, color, primitiveOverrides, colorLocked: true });
-              });
-
-              renderer = uvr;
-            }
-
-            renderer.authoringInfo = {
-              type: "reference-size",
-              referenceSizeSymbolStyle: shape,
-              referenceSizeReferenceScale: view.scale,
-              visualVariables: [{
-                type: "size",
-                field,
-                normalizationField,
-                stops: sizeStops,
-                minSliderValue: minBound,
-                maxSliderValue: maxBound
-              }]
-            };
-
-            return {
-              renderer,
-              isGrid,
-              statistics: {
-                avg: stats.avg,
-                stddev: stats.stddev,
-                min,
-                max,
-                minBound,
-                maxBound,
-                histogramResult
-              },
-              sizeStops,
-              minSize,
-              maxSize
-            };
           }
 
-          async function updateSizeRendererWithReferenceSize(params){
-            const { view, layer, field, normalizationField, sizeStops }  = params;
-            const renderer = Boolean(layer.featureReduction) ? layer.featureReduction?.renderer.clone() : layer.renderer.clone();
+          const sizeStops = [
+            { value: minBound, size: minSize },
+            { value: maxBound, size: maxSize }
+          ];
 
-            const { binSizePixels, isGrid } = await getBinSizePixels({ view, layer, forBinning });
+          const primitiveOverrides = getPrimitiveOverrides({
+            view, field, normalizationField, sizeStops, sizeByScaleEnabled: isGrid
+          });
 
-            const primitiveOverrides = getPrimitiveOverrides({
-              view, field, normalizationField, sizeStops, sizeByScaleEnabled: isGrid
+          const color = sizeRenderer?.classBreakInfos[0]?.symbol?.color;
+
+          sizeRenderer.classBreakInfos[0].symbol = createWurmanSymbol({ shape, color, primitiveOverrides, colorLocked: false });
+          sizeRenderer.visualVariables = visualVariables;
+
+          let renderer = sizeRenderer;
+
+          if (typeField) {
+            const { renderer: uvr } = await typeRendererCreator.createRenderer({
+              layer,
+              view,
+              field: typeField,
+              numTypes,
+              sortBy,
+              defaultSymbolEnabled: true,
+              forBinning
             });
 
-            if(renderer.type === "unique-value"){
-              renderer.uniqueValueInfos.forEach(uvi => {
-                uvi.symbol.data.primitiveOverrides = primitiveOverrides;
-              })
-            }
+            uvr.uniqueValueInfos.forEach(uvi => {
+              const color = uvi?.symbol?.color || new Color("gray");
+              uvi.symbol = createWurmanSymbol({ shape, color, primitiveOverrides, colorLocked: true });
+            });
 
-            if(renderer.type === "class-breaks"){
-              renderer.classBreakInfos.forEach(cbi => {
-                cbi.symbol.data.primitiveOverrides = primitiveOverrides;
-              });
-            }
-
-            const authInfoVV = renderer.authoringInfo.visualVariables.find( vv => vv.type === "size");
-            authInfoVV.field = field;
-            authInfoVV.normalizationField = normalizationField;
-            authInfoVV.stops = sizeStops;
-            renderer.authoringInfo.referenceSizeReferenceScale = view.scale;
-
-            return renderer;
+            renderer = uvr;
           }
+
+          renderer.authoringInfo = {
+            type: "reference-size",
+            referenceSizeSymbolStyle: shape,
+            referenceSizeReferenceScale: view.scale,
+            visualVariables: [{
+              type: "size",
+              field,
+              normalizationField,
+              stops: sizeStops,
+              minSliderValue: minBound,
+              maxSliderValue: maxBound
+            }]
+          };
+
+          return {
+            renderer,
+            isGrid,
+            statistics: {
+              avg: stats.avg,
+              stddev: stats.stddev,
+              min,
+              max,
+              minBound,
+              maxBound,
+              histogramResult
+            },
+            sizeStops,
+            minSize,
+            maxSize
+          };
+        }
+
+        async function updateSizeRendererWithReferenceSize(params) {
+          const { view, layer, field, normalizationField, sizeStops } = params;
+          const renderer = Boolean(layer.featureReduction) ? layer.featureReduction?.renderer.clone() : layer.renderer.clone();
+
+          const { binSizePixels, isGrid } = await getBinSizePixels({ view, layer, forBinning });
+
+          const primitiveOverrides = getPrimitiveOverrides({
+            view, field, normalizationField, sizeStops, sizeByScaleEnabled: isGrid
+          });
+
+          if (renderer.type === "unique-value") {
+            renderer.uniqueValueInfos.forEach(uvi => {
+              uvi.symbol.data.primitiveOverrides = primitiveOverrides;
+            })
+          }
+
+          if (renderer.type === "class-breaks") {
+            renderer.classBreakInfos.forEach(cbi => {
+              cbi.symbol.data.primitiveOverrides = primitiveOverrides;
+            });
+          }
+
+          const authInfoVV = renderer.authoringInfo.visualVariables.find(vv => vv.type === "size");
+          authInfoVV.field = field;
+          authInfoVV.normalizationField = normalizationField;
+          authInfoVV.stops = sizeStops;
+          renderer.authoringInfo.referenceSizeReferenceScale = view.scale;
+
+          return renderer;
+        }
+
+        view.ui.add(
+          new Home({
+            view: view
+          }),
+          "top-left"
+        );
+
+        view.ui.add("infoDiv", "top-right");
+
+        createLegend("generic");
+
+        view.ui.add(new Expand({
+          view,
+          expanded: false,
+          content: new BasemapGallery({ view }),
+          group: "top-left"
+        }), "top-left");
+
+        function createLegend(fileName) {
+          // Add custom legend as an image to an Expand instance
+
+          const descriptionContainer = document.createElement("div");
+          descriptionContainer.classList.add("description");
+
+          const descriptionTitle = document.createElement("div");
+          descriptionTitle.innerHTML = `<h3>${layer.title}</h3>`;
+          descriptionTitle.classList.add("esri-widget");
+          // descriptionTitle.classList.add("title");
+          descriptionContainer.appendChild(descriptionTitle);
+
+          const image = document.createElement("img");
+          image.src = `./assets/${fileName}.png`;
+          descriptionContainer.appendChild(image);
 
           view.ui.add(
-            new Home({
-              view: view
+            new Expand({
+              view: view,
+              content: descriptionContainer,
+              expandIconClass: "esri-icon-legend",
+              group: "top-left"
             }),
             "top-left"
           );
 
-          view.ui.add("infoDiv", "top-right");
+          // Adjusts the size of the legend image
+          // based on the size of the view
+          view.when()
+            .then(adjustLegendByViewSize);
 
-          createLegend("generic");
+          view.watch("widthBreakpoint", adjustLegendByViewSize);
 
-          view.ui.add(new Expand({
-            view,
-            expanded: false,
-            content: new BasemapGallery({ view }),
-            group: "top-left"
-          }), "top-left");
-
-          function createLegend (fileName){
-            // Add custom legend as an image to an Expand instance
-
-            const descriptionContainer = document.createElement("div");
-            descriptionContainer.classList.add("description");
-
-            const descriptionTitle = document.createElement("div");
-            descriptionTitle.innerHTML = `<h3>${layer.title}</h3>`;
-            descriptionTitle.classList.add("esri-widget");
-            // descriptionTitle.classList.add("title");
-            descriptionContainer.appendChild(descriptionTitle);
-
-            const image = document.createElement("img");
-            image.src = `./assets/${fileName}.png`;
-            descriptionContainer.appendChild(image);
-
-            view.ui.add(
-              new Expand({
-                view: view,
-                content: descriptionContainer,
-                expandIconClass: "esri-icon-legend",
-                group: "top-left"
-              }),
-              "top-left"
-            );
-
-            // Adjusts the size of the legend image
-            // based on the size of the view
-            view.when()
-              .then(adjustLegendByViewSize);
-
-            view.watch("widthBreakpoint", adjustLegendByViewSize);
-
-            function adjustLegendByViewSize() {
-              if (view.widthBreakpoint === "xsmall") {
-                image.style.width = "100%";
-              } else {
-                image.style.width = null;
-              }
-            }
-          }
-
-          const createRendererBtn = document.getElementById("createRendererBtn");
-          const markerCheckbox = document.getElementById("createMarkerPattern");
-          const markerCheckboxContainer = document.getElementById("markerCheckboxContainer");
-          markerCheckboxContainer.style.display = "none";
-          const fieldSelect = document.getElementById("fieldSelect");
-          fieldSelect.disabled = false;
-          const normalizationFieldSelect = document.getElementById("normalizationFieldSelect");
-          normalizationFieldSelect.disabled = true;
-          const colorFieldSelect = document.getElementById("colorFieldSelect");
-          colorFieldSelect.disabled = true;
-          const typeFieldSelect = document.getElementById("typeFieldSelect");
-          typeFieldSelect.disabled = true;
-          const colorNormalizationFieldSelect = document.getElementById("colorNormalizationFieldSelect");
-          const colorThemeSelect = document.getElementById("colorThemeSelect");
-          const statisticTypeSelect = document.getElementById("statisticTypeSelect");
-          statisticTypeSelect.disabled = true;
-          const gridResolutionUI = document.getElementById("gridResolutionUI");
-          gridResolutionUI.style.display = "none";
-          const shapeSelect = document.getElementById("shapeSelect");
-
-          await layer.load();
-          const forBinning = layer.geometryType === "point";
-
-          const numberFields = await getNumberFields(layer);
-          const stringFields = await getStringFields(layer);
-
-          createFieldSelect(typeFieldSelect, stringFields);
-
-          if(!forBinning){
-            createFieldSelect(fieldSelect, numberFields);
-            createFieldSelect(normalizationFieldSelect, numberFields);
-            createFieldSelect(colorFieldSelect, numberFields);
-            createFieldSelect(colorNormalizationFieldSelect, numberFields);
-            binLevelSlider.destroy();
-            binLevelSlider.container = null;
-            document.getElementById("statisticTypeUI").style.display = "none";
-            createRendererBtn.style.display = "none";
-            gridResolutionUI.style.display = "none";
-          }
-
-          let aggregateFields = [
-            new AggregateField({
-              name: "aggregateCount",
-              alias: "Total count",
-              statisticType: "count"
-            })
-          ];
-
-          if(forBinning){
-            const aggregateCountOption = {
-              value: "aggregateCount",
-              label: "Total count"
-            };
-            updateFieldSelect(fieldSelect, {
-              ...aggregateCountOption,
-              selected: true
-            });
-            createFieldSelect(fieldSelect, numberFields);
-            updateFieldSelect(normalizationFieldSelect, aggregateCountOption);
-            updateFieldSelect(colorFieldSelect, aggregateCountOption);
-            gridSizeSlider.destroy();
-            gridSizeSlider.container = null;
-          }
-
-          async function createFeatureReduction (fields) {
-            const featureReduction = await createBins({ layer, view, fields });
-            return featureReduction;
-          }
-
-          createRendererBtn.addEventListener("click", async () => {
-            if(forBinning){
-              if(layer?.featureReduction?.type !== "binning"){
-                const featureReduction = await createFeatureReduction(aggregateFields);
-                layer.featureReduction = featureReduction;
-              }
-            }
-            await createRenderer();
-          });
-
-          markerCheckbox.addEventListener("change", async () => {
-            gridResolutionUI.style.display = markerCheckbox.checked ? "block" : "none";
-            if(fieldSelect.value){
-              createRenderer();
-            }
-          });
-
-          async function createRenderer () {
-
-            statisticTypeSelect.disabled = !fieldSelect.value && !forBinning;
-            normalizationFieldSelect.disabled = !fieldSelect.value;
-            rendererStopsSelect.disabled = !fieldSelect.value;
-
-            typeFieldSelect.disabled = Boolean(colorFieldSelect.value);
-            colorThemeSelect.disabled = !Boolean(colorFieldSelect.value);
-            colorNormalizationFieldSelect.disabled = !Boolean(colorFieldSelect.value);
-            colorFieldSelect.disabled = Boolean(typeFieldSelect.value);
-
-            const symbolStyle = shapeSelect.value;
-
-            field = forBinning ? getAggregateFieldName() : fieldSelect.value;
-            normalizationField = normalizationFieldSelect.value || null;
-
-            const typeField = typeFieldSelect.value && forBinning ? typeFieldSelect.value + "_mode" : typeFieldSelect.value;
-            const vvField = colorFieldSelect.value || null;
-            const vvNormalizationField = colorNormalizationFieldSelect.value || null;
-            const theme = colorThemeSelect.value || null;
-
-            const referenceStat = referenceSizeStatsSelect.value || null;
-
-            const {
-              renderer,
-              statistics,
-              isGrid,
-              minSize,
-              maxSize,
-              sizeStops
-            } = await createSizeRendererWithReferenceSize({
-              layer,
-              view,
-              field,
-              normalizationField,
-              forBinning,
-              referenceStat,
-              referenceSizeOptions: {
-                symbolStyle
-              },
-              typeOptions: {
-                typeField,
-                numTypes: 10,
-                sortBy: "count",
-                sortEnabled: true
-              },
-              vvOptions: {
-                vvField,
-                vvNormalizationField,
-                theme
-              }
-            });
-
-            if(forBinning){
-              gridResolutionUI.style.display = "block";
-              markerCheckboxContainer.style.display = "none";
-              const featureReduction = layer.featureReduction.clone();
-              featureReduction.renderer = renderer;
-              layer.featureReduction = featureReduction;
+          function adjustLegendByViewSize() {
+            if (view.widthBreakpoint === "xsmall") {
+              image.style.width = "100%";
             } else {
-              layer.renderer = renderer;
-            }
-
-            updateSizeSlider(statistics, sizeStops, view.scale);
-            updateSymbolSizeSlider(sizeStops);
-
-            gridSizeSlider.disabled = isGrid;
-            if(!isGrid && markerPatternEnabled){
-              gridResolutionUI.style.display = "block";
-              markerCheckboxContainer.style.display = "block";
-            }
-            if(isGrid){
-              markerCheckboxContainer.style.display = "none";
+              image.style.width = null;
             }
           }
+        }
 
-          function getAggregateFieldName(){
-            const stat = statisticTypeSelect.value;
-            const fieldName = fieldSelect.value || "aggregateCount";
-            if(fieldName === "aggregateCount"){
-              return fieldName;
+        const createRendererBtn = document.getElementById("createRendererBtn");
+        const markerCheckbox = document.getElementById("createMarkerPattern");
+        const markerCheckboxContainer = document.getElementById("markerCheckboxContainer");
+        markerCheckboxContainer.style.display = "none";
+        const fieldSelect = document.getElementById("fieldSelect");
+        fieldSelect.disabled = false;
+        const normalizationFieldSelect = document.getElementById("normalizationFieldSelect");
+        normalizationFieldSelect.disabled = true;
+        const colorFieldSelect = document.getElementById("colorFieldSelect");
+        colorFieldSelect.disabled = true;
+        const typeFieldSelect = document.getElementById("typeFieldSelect");
+        typeFieldSelect.disabled = true;
+        const colorNormalizationFieldSelect = document.getElementById("colorNormalizationFieldSelect");
+        const colorThemeSelect = document.getElementById("colorThemeSelect");
+        const statisticTypeSelect = document.getElementById("statisticTypeSelect");
+        statisticTypeSelect.disabled = true;
+        const gridResolutionUI = document.getElementById("gridResolutionUI");
+        gridResolutionUI.style.display = "none";
+        const shapeSelect = document.getElementById("shapeSelect");
+
+        await layer.load();
+        const forBinning = layer.geometryType === "point";
+
+        const numberFields = await getNumberFields(layer);
+        const stringFields = await getStringFields(layer);
+
+        createFieldSelect(typeFieldSelect, stringFields);
+
+        if (!forBinning) {
+          createFieldSelect(fieldSelect, numberFields);
+          createFieldSelect(normalizationFieldSelect, numberFields);
+          createFieldSelect(colorFieldSelect, numberFields);
+          createFieldSelect(colorNormalizationFieldSelect, numberFields);
+          binLevelSlider.destroy();
+          binLevelSlider.container = null;
+          document.getElementById("statisticTypeUI").style.display = "none";
+          createRendererBtn.style.display = "none";
+          gridResolutionUI.style.display = "none";
+        }
+
+        let aggregateFields = [
+          new AggregateField({
+            name: "aggregateCount",
+            alias: "Total count",
+            statisticType: "count"
+          })
+        ];
+
+        if (forBinning) {
+          const aggregateCountOption = {
+            value: "aggregateCount",
+            label: "Total count"
+          };
+          updateFieldSelect(fieldSelect, {
+            ...aggregateCountOption,
+            selected: true
+          });
+          createFieldSelect(fieldSelect, numberFields);
+          updateFieldSelect(normalizationFieldSelect, aggregateCountOption);
+          updateFieldSelect(colorFieldSelect, aggregateCountOption);
+          gridSizeSlider.destroy();
+          gridSizeSlider.container = null;
+        }
+
+        async function createFeatureReduction(fields) {
+          const featureReduction = await createBins({ layer, view, fields });
+          return featureReduction;
+        }
+
+        createRendererBtn.addEventListener("click", async () => {
+          if (forBinning) {
+            if (layer?.featureReduction?.type !== "binning") {
+              const featureReduction = await createFeatureReduction(aggregateFields);
+              layer.featureReduction = featureReduction;
             }
-            return `${fieldName}_${stat}`;
           }
+          await createRenderer();
+        });
 
-          function getColorAggregateFieldName(forBinning){
-            const fieldName = colorFieldSelect.value;
-            if(fieldName === "aggregateCount"){
-              return fieldName;
-            }
-            return forBinning ? `${fieldName}_mode` : fieldName;
-          }
-
-          async function selectFieldHandler (event) {
-            const fieldName = fieldSelect.value;
-
-            if(forBinning && fieldName !== "aggregateCount" && fieldName){
-              statisticTypeSelect.disabled = fieldName === "aggregateCount";
-              const stat = statisticTypeSelect.value;
-              const aggregateField = createAggregateField(fieldName, stat);
-              updateFeatureReductionFields(layer, aggregateField);
-              updateAggregateFieldSelect(normalizationFieldSelect, aggregateField);
-              updateAggregateFieldSelect(colorFieldSelect, aggregateField);
-              updateAggregateFieldSelect(colorNormalizationFieldSelect, aggregateField);
-            }
-
-            if(!fieldName){
-              normalizationFieldSelect.value = null;
-              colorFieldSelect.value = null;
-              colorNormalizationFieldSelect.value = null;
-              typeFieldSelect.value = null;
-            }
-
-            await createRenderer();
-          }
-
-          fieldSelect.addEventListener("change", selectFieldHandler);
-          statisticTypeSelect.addEventListener("change", selectFieldHandler);
-          normalizationFieldSelect.addEventListener("change", () => {
+        markerCheckbox.addEventListener("change", async () => {
+          gridResolutionUI.style.display = markerCheckbox.checked ? "block" : "none";
+          if (fieldSelect.value) {
             createRenderer();
-          });
-          colorNormalizationFieldSelect.addEventListener("change", async () => {
-            await createRenderer();
-          });
-          rendererStopsSelect.addEventListener("change", () => {
-            createRenderer();
-          });
+          }
+        });
 
-          referenceSizeStatsSelect.addEventListener("change", () => {
-            createRenderer();
-          });
+        async function createRenderer() {
 
-          shapeSelect.addEventListener("change", () => {
-            createRenderer();
-          });
+          statisticTypeSelect.disabled = !fieldSelect.value && !forBinning;
+          normalizationFieldSelect.disabled = !fieldSelect.value;
+          rendererStopsSelect.disabled = !fieldSelect.value;
 
-          colorFieldSelect.addEventListener("change", async (event) => {
-            const fieldName = colorFieldSelect.value;
+          typeFieldSelect.disabled = Boolean(colorFieldSelect.value);
+          colorThemeSelect.disabled = !Boolean(colorFieldSelect.value);
+          colorNormalizationFieldSelect.disabled = !Boolean(colorFieldSelect.value);
+          colorFieldSelect.disabled = Boolean(typeFieldSelect.value);
 
-            const selectedIndex = colorFieldSelect.selectedIndex;
-            const optionText = colorFieldSelect.options[selectedIndex].innerText;
-            const modeOptionSelected = optionText.indexOf("Predominant value - ") > -1;
+          const symbolStyle = shapeSelect.value;
 
-            if(fieldName !== "aggregateCount" && modeOptionSelected){
-              const aggregateField = createAggregateField(fieldName, "mode");
-              updateFeatureReductionFields(layer, aggregateField);
+          field = forBinning ? getAggregateFieldName() : fieldSelect.value;
+          normalizationField = normalizationFieldSelect.value || null;
+
+          const typeField = typeFieldSelect.value && forBinning ? typeFieldSelect.value + "_mode" : typeFieldSelect.value;
+          const vvField = colorFieldSelect.value || null;
+          const vvNormalizationField = colorNormalizationFieldSelect.value || null;
+          const theme = colorThemeSelect.value || null;
+
+          const referenceStat = referenceSizeStatsSelect.value || null;
+
+          const {
+            renderer,
+            statistics,
+            isGrid,
+            minSize,
+            maxSize,
+            sizeStops
+          } = await createSizeRendererWithReferenceSize({
+            layer,
+            view,
+            field,
+            normalizationField,
+            forBinning,
+            referenceStat,
+            referenceSizeOptions: {
+              symbolStyle
+            },
+            typeOptions: {
+              typeField,
+              numTypes: 10,
+              sortBy: "count",
+              sortEnabled: true
+            },
+            vvOptions: {
+              vvField,
+              vvNormalizationField,
+              theme
             }
-
-            if(!fieldName){
-              colorNormalizationFieldSelect.value = null;
-            }
-            await createRenderer();
-          });
-          colorThemeSelect.addEventListener("change", () => {
-            createRenderer();
           });
 
-          typeFieldSelect.addEventListener("change", async (event) => {
-            const fieldName = typeFieldSelect.value;
-
-            if(forBinning && fieldName){
-              const stat = "mode";
-              const aggregateField = createAggregateField(fieldName, stat);
-              updateFeatureReductionFields(layer, aggregateField);
-            }
-
-            await createRenderer();
-          });
-
-          binLevelSlider.watch("values", ([value]) => {
-            if(layer.featureReduction && layer.featureReduction.renderer){
-              layer.featureReduction.fixedBinLevel = value;
-              createRenderer();
-            }
-          });
-
-          async function getNumberFields(layer) {
-            await layer.load();
-
-            const validTypes = [ "small-integer", "integer", "single", "double", "long", "number" ];
-
-            return layer.fields
-              .filter( field => validTypes.indexOf(field.type) > -1 );
-          }
-
-          async function getStringFields(layer) {
-            await layer.load();
-
-            const validTypes = [ "string" ];
-
-            return layer.fields
-              .filter( field => validTypes.indexOf(field.type) > -1 );
-          }
-
-          function createAggregateCountOption(){
-            const option = document.createElement("option");
-            option.value = "aggregateCount";
-            option.label = "Total Count";
-            option.selected = true;
-            return option;
-          }
-
-          function createFieldSelect(select, fields){
-
-            fields.forEach((field, i) => {
-              const option = document.createElement("option");
-              option.value = field.name;
-              option.label = `${field.type} - ${field.alias}`;
-              option.text = `${field.type} - ${field.alias}`;
-
-              select.appendChild(option);
-            });
-
-            return select;
-          }
-
-          function updateFieldSelect(select, optionParams){
-            const { value, label, selected } = optionParams;
-            const option = document.createElement("option");
-            option.value = value;
-            option.label = label;
-            option.text = label;
-            option.selected = Boolean(selected);
-            select.appendChild(option);
-          }
-
-          function createAggregateField(fieldName, stat){
-            const aggregateField = new AggregateField({
-              name: `${fieldName}_${stat}`,
-              alias: `${fieldName} (${stat})`,
-              onStatisticField: fieldName,
-              statisticType: stat
-            });
-
-            return aggregateField;
-          }
-
-          function updateFeatureReductionFields(layer, aggregateField){
+          if (forBinning) {
+            gridResolutionUI.style.display = "block";
+            markerCheckboxContainer.style.display = "none";
             const featureReduction = layer.featureReduction.clone();
-            if(
-              featureReduction.fields.some((field) => field.name === aggregateField.name)
-            ){
+            featureReduction.renderer = renderer;
+            layer.featureReduction = featureReduction;
+          } else {
+            layer.renderer = renderer;
+          }
+
+          updateSizeSlider(statistics, sizeStops, view.scale);
+          updateSymbolSizeSlider(sizeStops);
+
+          gridSizeSlider.disabled = isGrid;
+          if (!isGrid && markerPatternEnabled) {
+            gridResolutionUI.style.display = "block";
+            markerCheckboxContainer.style.display = "block";
+          }
+          if (isGrid) {
+            markerCheckboxContainer.style.display = "none";
+          }
+        }
+
+        function getAggregateFieldName() {
+          const stat = statisticTypeSelect.value;
+          const fieldName = fieldSelect.value || "aggregateCount";
+          if (fieldName === "aggregateCount") {
+            return fieldName;
+          }
+          return `${fieldName}_${stat}`;
+        }
+
+        function getColorAggregateFieldName(forBinning) {
+          const fieldName = colorFieldSelect.value;
+          if (fieldName === "aggregateCount") {
+            return fieldName;
+          }
+          return forBinning ? `${fieldName}_mode` : fieldName;
+        }
+
+        async function selectFieldHandler(event) {
+          const fieldName = fieldSelect.value;
+
+          if (forBinning && fieldName !== "aggregateCount" && fieldName) {
+            statisticTypeSelect.disabled = fieldName === "aggregateCount";
+            const stat = statisticTypeSelect.value;
+            const aggregateField = createAggregateField(fieldName, stat);
+            updateFeatureReductionFields(layer, aggregateField);
+            updateAggregateFieldSelect(normalizationFieldSelect, aggregateField);
+            updateAggregateFieldSelect(colorFieldSelect, aggregateField);
+            updateAggregateFieldSelect(colorNormalizationFieldSelect, aggregateField);
+          }
+
+          if (!fieldName) {
+            normalizationFieldSelect.value = null;
+            colorFieldSelect.value = null;
+            colorNormalizationFieldSelect.value = null;
+            typeFieldSelect.value = null;
+          }
+
+          await createRenderer();
+        }
+
+        fieldSelect.addEventListener("change", selectFieldHandler);
+        statisticTypeSelect.addEventListener("change", selectFieldHandler);
+        normalizationFieldSelect.addEventListener("change", () => {
+          createRenderer();
+        });
+        colorNormalizationFieldSelect.addEventListener("change", async () => {
+          await createRenderer();
+        });
+        rendererStopsSelect.addEventListener("change", () => {
+          createRenderer();
+        });
+
+        referenceSizeStatsSelect.addEventListener("change", () => {
+          createRenderer();
+        });
+
+        shapeSelect.addEventListener("change", () => {
+          createRenderer();
+        });
+
+        colorFieldSelect.addEventListener("change", async (event) => {
+          const fieldName = colorFieldSelect.value;
+
+          const selectedIndex = colorFieldSelect.selectedIndex;
+          const optionText = colorFieldSelect.options[selectedIndex].innerText;
+          const modeOptionSelected = optionText.indexOf("Predominant value - ") > -1;
+
+          if (fieldName !== "aggregateCount" && modeOptionSelected) {
+            const aggregateField = createAggregateField(fieldName, "mode");
+            updateFeatureReductionFields(layer, aggregateField);
+          }
+
+          if (!fieldName) {
+            colorNormalizationFieldSelect.value = null;
+          }
+          await createRenderer();
+        });
+        colorThemeSelect.addEventListener("change", () => {
+          createRenderer();
+        });
+
+        typeFieldSelect.addEventListener("change", async (event) => {
+          const fieldName = typeFieldSelect.value;
+
+          if (forBinning && fieldName) {
+            const stat = "mode";
+            const aggregateField = createAggregateField(fieldName, stat);
+            updateFeatureReductionFields(layer, aggregateField);
+          }
+
+          await createRenderer();
+        });
+
+        binLevelSlider.watch("values", ([value]) => {
+          if (layer.featureReduction && layer.featureReduction.renderer) {
+            layer.featureReduction.fixedBinLevel = value;
+            createRenderer();
+          }
+        });
+
+        async function getNumberFields(layer) {
+          await layer.load();
+
+          const validTypes = ["small-integer", "integer", "single", "double", "long", "number"];
+
+          return layer.fields
+            .filter(field => validTypes.indexOf(field.type) > -1);
+        }
+
+        async function getStringFields(layer) {
+          await layer.load();
+
+          const validTypes = ["string"];
+
+          return layer.fields
+            .filter(field => validTypes.indexOf(field.type) > -1);
+        }
+
+        function createAggregateCountOption() {
+          const option = document.createElement("option");
+          option.value = "aggregateCount";
+          option.label = "Total Count";
+          option.selected = true;
+          return option;
+        }
+
+        function createFieldSelect(select, fields) {
+
+          fields.forEach((field, i) => {
+            const option = document.createElement("option");
+            option.value = field.name;
+            option.label = `${field.type} - ${field.alias}`;
+            option.text = `${field.type} - ${field.alias}`;
+
+            select.appendChild(option);
+          });
+
+          return select;
+        }
+
+        function updateFieldSelect(select, optionParams) {
+          const { value, label, selected } = optionParams;
+          const option = document.createElement("option");
+          option.value = value;
+          option.label = label;
+          option.text = label;
+          option.selected = Boolean(selected);
+          select.appendChild(option);
+        }
+
+        function createAggregateField(fieldName, stat) {
+          const aggregateField = new AggregateField({
+            name: `${fieldName}_${stat}`,
+            alias: `${fieldName} (${stat})`,
+            onStatisticField: fieldName,
+            statisticType: stat
+          });
+
+          return aggregateField;
+        }
+
+        function updateFeatureReductionFields(layer, aggregateField) {
+          const featureReduction = layer.featureReduction.clone();
+          if (
+            featureReduction.fields.some((field) => field.name === aggregateField.name)
+          ) {
+            return;
+          }
+          featureReduction.fields.push(aggregateField);
+          layer.featureReduction = featureReduction;
+          return featureReduction;
+        }
+
+        function updateAggregateFieldSelect(select, aggregateField) {
+
+          for (let i = 0; i < select.length; i++) {
+            if (select.options[i].value === aggregateField.name) {
               return;
             }
-            featureReduction.fields.push(aggregateField);
-            layer.featureReduction = featureReduction;
-            return featureReduction;
           }
 
-          function updateAggregateFieldSelect (select, aggregateField){
+          const option = document.createElement("option");
+          option.value = aggregateField.name;
+          option.label = aggregateField.alias;
+          option.text = aggregateField.alias;
+          select.appendChild(option);
+        }
 
-            for(let i = 0; i < select.length; i++){
-              if(select.options[i].value === aggregateField.name){
-                return;
-              }
-            }
+      })();
+    });
+  </script>
+</head>
 
-            const option = document.createElement("option");
-            option.value = aggregateField.name;
-            option.label = aggregateField.alias;
-            option.text = aggregateField.alias;
-            select.appendChild(option);
-          }
+<body>
+  <div id="viewDiv"></div>
+  <div id="infoDiv" class="esri-widget">
+    <div id="smartMappingDiv" class="esri-widget">
+      <h2>Bounded Size</h2>
+      <button id="createRendererBtn" class="esri-button">Create style</button>
 
-        })();
-      });
-    </script>
-  </head>
-  <body>
-    <div id="viewDiv"></div>
-    <div id="infoDiv" class="esri-widget">
-      <div id="smartMappingDiv" class="esri-widget">
-        <h2>Bounded Size</h2>
-        <button id="createRendererBtn" class="esri-button">Create style</button>
+      <div id="markerCheckboxContainer">
+        <input id="createMarkerPattern" type="checkbox" class="esri-checkbox" checked> Create marker pattern fill
+      </div>
 
-        <div id="markerCheckboxContainer">
-          <input id="createMarkerPattern" type="checkbox" class="esri-checkbox" checked> Create marker pattern fill
-        </div>
+      <div id="gridResolutionUI">
+        <div class="description">Grid resolution</div>
+        <!-- Bin size -->
+        <div id="binLevelSlider"></div>
 
-        <div id="gridResolutionUI">
-          <div class="description">Grid resolution</div>
-          <!-- Bin size -->
-          <div id="binLevelSlider"></div>
+        <!-- Bin size -->
+        <div id="gridSizeSlider"></div>
+      </div>
 
-          <!-- Bin size -->
-          <div id="gridSizeSlider"></div>
-        </div>
+      Symbol shape
+      <div id="shapeContainer">
+        <select id="shapeSelect" class="esri-select">
+          <option value="circle" selected>circle</option>
+          <option value="square">square</option>
+          <option value="diamond">diamond</option>
+          <option value="hexagonFlat">hexagon (flat)</option>
+          <option value="hexagonPointy">hexagon (pointy)</option>
+        </select>
+      </div>
 
-        Symbol shape
-        <div id="shapeContainer">
-          <select id="shapeSelect" class="esri-select">
-            <option value="circle" selected>circle</option>
-            <option value="square">square</option>
-            <option value="triangle">triangle</option>
-            <option value="diamond">diamond</option>
-            <option value="squareDiamond">diamond (square)</option>
-            <option value="pentagon">pentagon</option>
-            <option value="hexagon">hexagon</option>
-            <option value="star">star</option>
-            <option value="heptagon">heptagon</option>
-            <option value="decagon">decagon</option>
-          </select>
-        </div>
+      Size Field
+      <div class="explanation">Creates aggregate fields that can be used for color</div>
+      <div id="fieldSelectContainer">
+        <select id="fieldSelect" class="esri-select">
+          <option value="" selected></option>
+        </select>
+      </div>
 
-        Size Field
-        <div class="explanation">Creates aggregate fields that can be used for color</div>
-        <div id="fieldSelectContainer">
-          <select id="fieldSelect" class="esri-select">
-            <option value="" selected></option>
-          </select>
-        </div>
+      Size Normalization Field
+      <div id="normalizationFieldSelectContainer">
+        <select id="normalizationFieldSelect" class="esri-select">
+          <option value="" selected></option>
+        </select>
+      </div>
 
-        Size Normalization Field
-        <div id="normalizationFieldSelectContainer">
-          <select id="normalizationFieldSelect" class="esri-select">
-            <option value="" selected></option>
-          </select>
-        </div>
-
-        <div id="statisticTypeUI">
-          Statistic type
-          <select id="statisticTypeSelect" class="esri-select" disabled>
-            <option value="sum" selected>sum</option>
-            <option value="avg">avg</option>
-            <option value="min">min</option>
-            <option value="max">max</option>
-          </select>
-        </div>
-
-        Max size =
-        <select id="rendererStopsSelect" class="esri-select">
-          <option value="mean">mean</option>
-          <option value="0.5-std-dev">1/2 std dev</option>
-          <option value="1-std-dev">1 std dev</option>
-          <option value="2-std-dev" selected>2 std dev</option>
+      <div id="statisticTypeUI">
+        Statistic type
+        <select id="statisticTypeSelect" class="esri-select" disabled>
+          <option value="sum" selected>sum</option>
+          <option value="avg">avg</option>
+          <option value="min">min</option>
           <option value="max">max</option>
         </select>
+      </div>
 
-        Reference line data value
-        <select id="referenceSizeStats" class="esri-select">
-          <option value="min">min</option>
-          <option value="mean">mean</option>
-          <option value="0.5-std-dev">1/2 std dev</option>
-          <option value="1-std-dev">1 std dev</option>
-          <option value="2-std-dev" selected>2 std dev</option>
-          <option value="max" selected>= max size</option>
+      Max size =
+      <select id="rendererStopsSelect" class="esri-select">
+        <option value="mean">mean</option>
+        <option value="0.5-std-dev">1/2 std dev</option>
+        <option value="1-std-dev">1 std dev</option>
+        <option value="2-std-dev" selected>2 std dev</option>
+        <option value="max">max</option>
+      </select>
+
+      Reference line data value
+      <select id="referenceSizeStats" class="esri-select">
+        <option value="min">min</option>
+        <option value="mean">mean</option>
+        <option value="0.5-std-dev">1/2 std dev</option>
+        <option value="1-std-dev">1 std dev</option>
+        <option value="2-std-dev" selected>2 std dev</option>
+        <option value="max" selected>= max size</option>
+      </select>
+
+      Type field
+      <div id="typeFieldSelectContainer">
+        <select id="typeFieldSelect" class="esri-select">
+          <option value="" selected></option>
         </select>
-
-        Type field
-        <div id="typeFieldSelectContainer">
-          <select id="typeFieldSelect" class="esri-select">
-            <option value="" selected></option>
-          </select>
-        </div>
-
-        Color field
-        <div id="colorFieldSelectContainer">
-          <select id="colorFieldSelect" class="esri-select">
-            <option value="" selected></option>
-          </select>
-        </div>
-
-        Color Normalization Field
-        <div id="colorNormalizationFieldSelectContainer">
-          <select id="colorNormalizationFieldSelect" class="esri-select" disabled>
-            <option value="" selected></option>
-          </select>
-        </div>
-
-        Color Theme
-        <div id="colorThemeSelectContainer">
-          <select id="colorThemeSelect" class="esri-select" disabled>
-            <option value="high-to-low" selected>High to low</option>
-            <option value="above-and-below">Above and below</option>
-            <option value="above">Above</option>
-            <option value="below">Below</option>
-            <option value="centered-on">Centered on</option>
-            <option value="extremes">Extremes</option>
-          </select>
-        </div>
-
-        <input
-          id="saveWebMap"
-          type="button"
-          value="Save"
-          disabled
-          class="esri-button"
-        />
-
       </div>
 
-      <div id="sliders">
-
-        <div id="sizeSliderContainer">
-          <div id="sizeSlider"></div>
-        </div>
-
-        <div id="symbol-sizes-container"><div id="symbol-sizes"></div></div>
-
-        <div id="colorSliderContainer">
-        </div>
-
+      Color field
+      <div id="colorFieldSelectContainer">
+        <select id="colorFieldSelect" class="esri-select">
+          <option value="" selected></option>
+        </select>
       </div>
 
-      <!-- <div id="referenceSizeUI">
+      Color Normalization Field
+      <div id="colorNormalizationFieldSelectContainer">
+        <select id="colorNormalizationFieldSelect" class="esri-select" disabled>
+          <option value="" selected></option>
+        </select>
+      </div>
+
+      Color Theme
+      <div id="colorThemeSelectContainer">
+        <select id="colorThemeSelect" class="esri-select" disabled>
+          <option value="high-to-low" selected>High to low</option>
+          <option value="above-and-below">Above and below</option>
+          <option value="above">Above</option>
+          <option value="below">Below</option>
+          <option value="centered-on">Centered on</option>
+          <option value="extremes">Extremes</option>
+        </select>
+      </div>
+
+      <input id="saveWebMap" type="button" value="Save" disabled class="esri-button" />
+
+    </div>
+
+    <div id="sliders">
+
+      <div id="sizeSliderContainer">
+        <div id="sizeSlider"></div>
+      </div>
+
+      <div id="symbol-sizes-container">
+        <div id="symbol-sizes"></div>
+      </div>
+
+      <div id="colorSliderContainer">
+      </div>
+
+    </div>
+
+    <!-- <div id="referenceSizeUI">
       </div> -->
-      <div id="legendDiv"></div>
-    </div>
-    <div id="overlayDiv" class="esri-widget">
-      <h4 class="esri-heading" id="head"></h4>
-      <label id="info"></label>
-      <input type="button" value="OK" class="esri-button" />
-    </div>
-  </body>
+    <div id="legendDiv"></div>
+  </div>
+  <div id="overlayDiv" class="esri-widget">
+    <h4 class="esri-heading" id="head"></h4>
+    <label id="info"></label>
+    <input type="button" value="OK" class="esri-button" />
+  </div>
+</body>
+
 </html>
