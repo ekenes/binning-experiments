@@ -120,6 +120,7 @@
         "esri/smartMapping/statistics/histogram",
         "esri/smartMapping/symbology/location",
         "esri/smartMapping/renderers/color",
+        "esri/smartMapping/renderers/size",
         "esri/smartMapping/renderers/type",
         "esri/layers/support/LabelClass",
         "esri/geometry/geometryEngine",
@@ -143,6 +144,7 @@
         histogram,
         locationSymbology,
         colorRendererCreator,
+        sizeRendererCreator,
         typeRendererCreator,
         LabelClass,
         geometryEngine,
@@ -492,23 +494,13 @@
               });
 
               sizeSlider.on(["segment-drag", "thumb-change", "thumb-drag"], async (event) => {
-                const minBound = sizeSlider.stops[0].value;
-                const maxBound = sizeSlider.stops[1].value;
-                const forBinning = Boolean(layer.featureReduction);
-                const gridSize = gridSizeSlider.values[0];
-                const markerPatternEnabled = markerCheckbox.checked;
-                const referenceStat = referenceSizeStatsSelect.value;
-                const referenceDataValue = referenceSizeDataValue;
 
-                const minSize = Math.min(...symbolSizeSlider.values);
-
-                const renderer = await updateWurmanDotRenderer({
-                  min, max, minBound, maxBound, gridSize, referenceDataValue, minSize
-                }, {
-                  view, layer, field, normalizationField, forBinning, markerPatternEnabled
+                const sizeStops = sizeSlider.stops;
+                const renderer = await updateSizeRendererWithReferenceSize({
+                  view, layer, field, normalizationField, sizeStops
                 });
 
-                if(forBinning){
+                if(layer.featureReduction){
                   const featureReduction = layer.featureReduction.clone();
                   featureReduction.renderer = renderer;
                   layer.featureReduction = featureReduction;
@@ -559,20 +551,15 @@
                 const minSize = Math.min(...values);
                 const maxSize = Math.max(...values);
 
-                const minBound = sizeSlider.stops[0].value;
-                const maxBound = sizeSlider.stops[1].value;
-                const forBinning = Boolean(layer.featureReduction);
-                const markerPatternEnabled = markerCheckbox.checked;
-                const referenceStat = referenceSizeStatsSelect.value;
-                const referenceDataValue = referenceSizeDataValue;
+                const sizeStops = sizeSlider.stops;
+                sizeStops[0].size = minSize;
+                sizeStops[1].size = maxSize;
 
-                const renderer = await updateWurmanDotRenderer({
-                  min, max, minBound, maxBound, referenceDataValue, minSize, maxSize
-                }, {
-                  view, layer, field, normalizationField, forBinning, markerPatternEnabled
+                const renderer = await updateSizeRendererWithReferenceSize({
+                  view, layer, field, normalizationField, sizeStops
                 });
 
-                if(forBinning){
+                if(layer.featureReduction){
                   const featureReduction = layer.featureReduction.clone();
                   featureReduction.renderer = renderer;
                   layer.featureReduction = featureReduction;
@@ -685,7 +672,7 @@
           }
 
           async function getBinSizePixels(params){
-            const { layer, view, forBinning, markerPatternEnabled } = params;
+            const { layer, view, forBinning } = params;
             const layerView = await view.whenLayerView(layer);
 
             if(forBinning){
@@ -712,26 +699,26 @@
             } else {
               // For polygon layers
               const layerGraphicsResponse = await layerView.queryFeatures();
-              const binGraphics = layerGraphicsResponse.features;
+              const layerGraphics = layerGraphicsResponse.features;
 
-              const aspectRatios = binGraphics.map((feature) => {
+              const aspectRatios = layerGraphics.map((feature) => {
                 const extent = feature?.geometry?.extent;
                 if(!extent){ return null }
                 return extent.width / extent.height;
               });
 
-              const sizes = binGraphics.map((feature) => {
+              const sizes = layerGraphics.map((feature) => {
                 const extent = feature?.geometry?.extent;
                 if(!extent){ return null }
                 return Math.sqrt(extent.width * extent.height);
               });
 
-              if(binGraphics.length === 0){
+              if(layerGraphics.length === 0){
                 return 1;
               }
 
               const { minSize, maxSize, avgSize } = await spatialStatistics({
-                features: binGraphics,
+                features: layerGraphics,
                 geometryType: "polygon"
               });
 
@@ -759,22 +746,22 @@
                 (avgAspectRatios > (1 - aspectRatioAvgThreshold) && avgAspectRatios < (1 + aspectRatioAvgThreshold)) &&
                 coefficientVariation < coefficientVariationThreshold );
               const binSize =
-                isGrid ? avgSize * (1-sizeThreshold) :
-                !markerPatternEnabled ? avgSize * 0.25 :
-                (2 * minSize);
+                isGrid ? avgSize * (1-sizeThreshold) : avgSize * 0.25;
               const binSizePixels = binSize / view.resolution;
 
               return {
                 binSizePixels,
-                isGrid: isGrid
+                isGrid
               };
             }
           }
 
-          function getPrimitiveOverrides(rendererParams, stats){
-            const { view, field, normalizationField, typeOptions, gridSize, markerPatternEnabled, minSize } = rendererParams;
-            const gridSizePixels = gridSize || 20;
-            const { minBound, maxBound, binSizePixels, isGrid, referenceDataValue } = stats;
+          function getPrimitiveOverrides(params){
+            const { view, field, normalizationField, sizeStops, sizeByScaleEnabled } = params;
+            const minDataValue = sizeStops[0].value;
+            const maxDataValue = sizeStops[1].value;
+            const minSize = sizeStops[0].size;
+            const maxSize = sizeStops[1].size;
 
             let value;
             let fields;
@@ -805,17 +792,11 @@
             const outerRingExpressionInfo = {
               type: "CIMExpressionInfo",
               title: "Size in pixels of outer ring at maxScale",
-              expression: isGrid ? `
-                var value = ${referenceDataValue};
-                var binWidthPixels = ${binSizePixels};
-
-                var minBound = ${minBound};
-                var maxBound = ${maxBound};
-                var ratio = ( value - minBound) / (maxBound - minBound);
-                var referenceRatio = Constrain(ratio, 0, 1);
-
-                return (binWidthPixels * referenceRatio * (${view.scale} / $view.scale)) * 0.75;
-              ` : `${!markerPatternEnabled ? binSizePixels : gridSizePixels} * 0.75`,
+              // We shouldn't have to convert to points since maxSize will likely already be in points...
+              expression: sizeByScaleEnabled ? `
+                var maxSize = ${maxSize};
+                return (maxSize * (${view.scale} / $view.scale)) * 0.75;
+              ` : `${maxSize} * 0.75`,
               returnType: "Default"
             };
 
@@ -836,33 +817,18 @@
                   // outerSize is the pixel size at the largest scale
                   // The innerSize is determined by multiplying
                   // the outerSize by the forest ratio
-                  expression: isGrid ? `
+                  expression: `
                     ${fields}
                     var value = ${value};
 
-                    var binWidthPixels = ${binSizePixels};
-                    var minBound = ${minBound};
-                    var maxBound = ${maxBound};
-                    var ratio = ( value - minBound) / (maxBound - minBound);
+                    var maxSize = ${maxSize};
+                    var minDataValue = ${minDataValue};
+                    var maxDataValue = ${maxDataValue};
+                    var ratio = ( value - minDataValue) / (maxDataValue - minDataValue);
 
                     var innerRatio = Constrain(ratio, 0, 1);
-                    var outerSize = binWidthPixels * (${view.scale} / $view.scale);
-                    // 0 is what the minSize could be if provided in UI
-                    var innerSize = Constrain((outerSize * innerRatio) + ${minSize}, 0, outerSize);
-                    // pixel to point conversion
-                    return innerSize * 0.75;
-                  ` : `
-                    ${fields}
-                    var value = ${value};
-
-                    var binWidthPixels = ${binSizePixels};
-                    var minBound = ${minBound};
-                    var maxBound = ${maxBound};
-                    var ratio = ( value - minBound) / (maxBound - minBound);
-
-                    var innerRatio = Constrain(ratio, 0, 1);
-                    var outerSize = ${!markerPatternEnabled ? binSizePixels : gridSizePixels} * 0.75;
-                    // 0 is what the minSize could be if provided in UI
+                    var referenceScaleRatio = ${sizeByScaleEnabled ? `(${view.scale} / $view.scale)`: 1};
+                    var outerSize = maxSize * referenceScaleRatio;
                     var innerSize = Constrain((outerSize * innerRatio) + ${minSize}, 0, outerSize);
                     // pixel to point conversion
                     return innerSize * 0.75;
@@ -871,62 +837,6 @@
                 }
               }
             ];
-
-            if(typeOptions?.typeField && typeOptions?.uniqueValueInfos){
-
-              const { typeField, uniqueValueInfos } = typeOptions;
-
-              let uniqueValuesWithColors = {};
-
-              for (let i in uniqueValueInfos){
-                const info = uniqueValueInfos[i];
-                uniqueValuesWithColors[info.value] = info.symbol.color.toJSON();
-              }
-
-              const colorOverrideExpression = `
-                $feature.${typeField};
-                var value = $feature.${typeField};
-
-                var uniqueValueInfos = ${JSON.stringify(uniqueValuesWithColors)};
-
-                if(HasValue(uniqueValueInfos, value)){
-                  return uniqueValueInfos[value];
-                }
-                return [128,128,128,255];
-              `;
-
-              const innerDotColorOverride = {
-                type: "CIMPrimitiveOverride",
-                primitiveName: "symbolFill",
-                propertyName: "Color",
-                valueExpressionInfo: {
-                  type: "CIMExpressionInfo",
-                  title: "unique value color",
-                  expression: colorOverrideExpression,
-                  returnType: "Default"
-                }
-              };
-
-              primitiveOverrides.push(innerDotColorOverride);
-            }
-
-            if(!isGrid && markerPatternEnabled){
-              const stepXOverride = {
-                type: "CIMPrimitiveOverride",
-                primitiveName: "stepXY",
-                propertyName: "StepX",
-                valueExpressionInfo: outerRingExpressionInfo
-              };
-
-              const stepYOverride = {
-                type: "CIMPrimitiveOverride",
-                primitiveName: "stepXY",
-                propertyName: "StepY",
-                valueExpressionInfo: outerRingExpressionInfo
-              };
-
-              primitiveOverrides = [...primitiveOverrides, stepXOverride, stepYOverride];
-            }
 
             return primitiveOverrides;
           }
@@ -1374,7 +1284,85 @@
             return shapeMap[type];
           }
 
-          async function createProportionalGridRenderer(params){
+          function createWurmanSymbol({ shape, color, primitiveOverrides, colorLocked }){
+            return {
+              type: "cim",
+              data: {
+                type: "CIMSymbolReference",
+                symbol: {
+                  type: "CIMPolygonSymbol",
+                  symbolLayers: [
+                    {
+                      type: "CIMVectorMarker",
+                      enable: true,
+                      colorLocked: false,
+                      anchorPoint: { x: 0, y: 0 },
+                      anchorPointUnits: "Relative",
+                      primitiveName: "outerRing",
+                      frame: { xmin: 0.0, ymin: 0.0, xmax: 17.0, ymax: 17.0 },
+                      markerGraphics: [
+                        {
+                          type: "CIMMarkerGraphic",
+                          geometry: createSymbolGeometry(shape),
+                          symbol: {
+                            type: "CIMPolygonSymbol",
+                            symbolLayers: [
+                              {
+                                type: "CIMSolidFill",
+                                enable: true,
+                                color: color.toJSON(),
+                                colorLocked,
+                                primitiveName: colorLocked ? "grayRing" : "symbolFill",
+                                width: 1.5,
+                                effects: [{
+                                  type: "CIMGeometricEffectDonut",
+                                  width: 0.75
+                                }]
+                              }
+                            ]
+                          }
+                        }
+                      ],
+                      scaleSymbolsProportionally: false,
+                      respectFrame: true,
+                      markerPlacement: null
+                    },
+                    {
+                      type: "CIMVectorMarker",
+                      enable: true,
+                      anchorPoint: { x: 0, y: 0 },
+                      anchorPointUnits: "Relative",
+                      primitiveName: "innerDot",
+                      frame: { xmin: 0.0, ymin: 0.0, xmax: 17.0, ymax: 17.0 },
+                      markerGraphics: [
+                        {
+                          type: "CIMMarkerGraphic",
+                          geometry: createSymbolGeometry(shape),
+                          symbol: {
+                            type: "CIMPolygonSymbol",
+                            symbolLayers: [
+                              {
+                                type: "CIMSolidFill",
+                                enable: true,
+                                color: color.toJSON(),
+                                primitiveName: "symbolFill"
+                              }
+                            ]
+                          }
+                        }
+                      ],
+                      scaleSymbolsProportionally: true,
+                      respectFrame: true,
+                      markerPlacement: null
+                    }
+                  ]
+                },
+                primitiveOverrides
+              }
+            };
+          }
+
+          async function createSizeRendererWithReferenceSize(params){
             const {
               layer,
               view,
@@ -1382,14 +1370,14 @@
               normalizationField,
               minValue,
               maxValue,
-              markerPatternEnabled,
-              referenceStat,
               typeOptions,
               vvOptions,
               gridSize,
-              shape,
+              referenceSizeOptions,
               forBinning
             } = params;
+
+            const { symbolStyle: shape } = referenceSizeOptions;
 
             const {
               typeField,
@@ -1415,7 +1403,8 @@
               forBinning
             };
 
-            const stats = await summaryStatistics(statParams);
+            const { statistics: stats, renderer: sizeRenderer } = await sizeRendererCreator.createContinuousRenderer(statParams);
+
             const histogramResult = await histogram({
               ...statParams,
               numBins: 60
@@ -1449,29 +1438,20 @@
               "max": max
             };
 
-            const referenceDataValue = maxBoundDictionary[referenceStat];
+            const referenceDataValue = maxBoundDictionary["2-std-dev"];
             referenceSizeDataValue = referenceDataValue;
 
-            maxBound =
+            const maxBound =
               isRatio ? ratioMax :
               isPercentage ? percentageMax :
-              maxBoundDictionary[rendererStopsSelect.value];
+              maxBoundDictionary["2-std-dev"];
 
-            minBound =
+            const minBound =
               isRatio ? ratioMin :
               isPercentage ? percentageMin :
               min;
 
-            const { primaryScheme } = await locationSymbology.getSchemes({
-              basemap: view.map.basemap,
-              geometryType: layer.geometryType
-            });
-
-            const fillColor = primaryScheme.color;
-            const ringColor = primaryScheme.color.clone();
-            ringColor.a = 0.75;
-
-            const getBinSizePixelsResult = await getBinSizePixels({ view, layer, forBinning, markerPatternEnabled });
+            const getBinSizePixelsResult = await getBinSizePixels({ view, layer, forBinning });
             binSizePixels = getBinSizePixelsResult.binSizePixels;
             isGrid = getBinSizePixelsResult.isGrid;
 
@@ -1479,22 +1459,8 @@
 
             let uniqueValueInfos, colorVariable, visualVariables, colorStats, colorHistogramResult;
 
-            if(typeField){
-              const uniqueValueRendererResponse = await typeRendererCreator.createRenderer({
-                layer,
-                view,
-                field: typeField,
-                numTypes,
-                sortBy,
-                defaultSymbolEnabled: true,
-                forBinning
-              });
-
-              uniqueValueInfos = uniqueValueRendererResponse.renderer.uniqueValueInfos;
-            }
-
             if( vvField ){
-              const { visualVariable, statistics } = await colorRendererCreator.createVisualVariable({
+              const { visualVariable: colorVariable, statistics: colorStats  } = await colorRendererCreator.createVisualVariable({
                 layer,
                 view,
                 field: vvField,
@@ -1504,8 +1470,6 @@
                 forBinning
               });
 
-              colorVariable = visualVariable;
-              colorStats = statistics;
               visualVariables = [ colorVariable ];
 
               colorHistogramResult = await histogram({
@@ -1521,137 +1485,52 @@
 
             updateColorSlider(colorVariable, colorStats, colorHistogramResult);
 
+            const sizeStops = [
+              { value: minBound, size: minSize },
+              { value: maxBound, size: maxSize }
+            ];
+
             const primitiveOverrides = getPrimitiveOverrides({
-              view, field, normalizationField,
-              typeOptions: {
-                typeField,
-                uniqueValueInfos
-              },
-              gridSize,
-              markerPatternEnabled,
-              minSize
-            }, {
-              minBound, maxBound, binSizePixels, isGrid, referenceDataValue
+              view, field, normalizationField, sizeStops, sizeByScaleEnabled: isGrid
             });
 
-            const markerPlacement = !isGrid && markerPatternEnabled ? {
-              primitiveName: "stepXY",
-              type: "CIMMarkerPlacementInsidePolygon",
-              gridType: "Fixed",
-              randomness: 100,
-              seed: 13,
-              stepX: gridSize,
-              stepY: gridSize,
-              clipping: "DoNotClip"
-            } : null;
+            const color = sizeRenderer?.classBreakInfos[0]?.symbol?.color;
 
-            const renderer = {
-              type: "simple",
-              visualVariables,
-              symbol: {
-                type: "cim",
-                data: {
-                  type: "CIMSymbolReference",
-                  symbol: {
-                    type: "CIMPolygonSymbol",
-                    symbolLayers: [
-                      {
-                        type: "CIMVectorMarker",
-                        enable: true,
-                        colorLocked: false,
-                        anchorPoint: { x: 0, y: 0 },
-                        anchorPointUnits: "Relative",
-                        primitiveName: "outerRing",
-                        frame: { xmin: 0.0, ymin: 0.0, xmax: 17.0, ymax: 17.0 },
-                        markerGraphics: [
-                          {
-                            type: "CIMMarkerGraphic",
-                            geometry: createSymbolGeometry(shape),
-                            symbol: {
-                              type: "CIMPolygonSymbol",
-                              symbolLayers: [
-                                {
-                                  // type: "CIMSolidStroke",
-                                  type: "CIMSolidFill",
-                                  enable: true,
-                                  color: referenceStat !== "max" ? [128, 128, 128, 255] : ringColor.toJSON(),
-                                  colorLocked: referenceStat !== "max",
-                                  primitiveName: referenceStat !== "max" ? "grayRing" : "symbolFill",
-                                  width: 1.5,
-                                  effects: [
-                                    {
-                                    type: "CIMGeometricEffectDonut",
-                                    width: 0.75
-                                  },
-                                  // {
-                                  //   type: "CIMGeometricEffectDashes",
-                                  //   dashTemplate: [2,2,2,2], // [dash, gap, dash, gap]
-                                  //   lineDashEnding: "NoConstraint",
-                                  //   offsetAlongLine: 0
-                                  // }
-                                ]
-                                },
-                                // {
-                                //   type: "CIMSolidStroke",
-                                //   // type: "CIMSolidFill",
-                                //   enable: true,
-                                //   color: ringColor.toJSON(),
-                                //   primitiveName: "symbolFill",
-                                //   width: 1.5,
-                                //   effects: [
-                                //     {
-                                //     type: "CIMGeometricEffectDonut",
-                                //     width: 0.75
-                                //   },
-                                //   // {
-                                //   //   type: "CIMGeometricEffectDashes",
-                                //   //   dashTemplate: [2,2,2,2], // [dash, gap, dash, gap]
-                                //   //   lineDashEnding: "NoConstraint",
-                                //   //   offsetAlongLine: 2
-                                //   // }
-                                // ]
-                                // }
-                              ]
-                            }
-                          }
-                        ],
-                        scaleSymbolsProportionally: false,
-                        respectFrame: true,
-                        markerPlacement
-                      },
-                      {
-                        type: "CIMVectorMarker",
-                        enable: true,
-                        anchorPoint: { x: 0, y: 0 },
-                        anchorPointUnits: "Relative",
-                        primitiveName: "innerDot",
-                        frame: { xmin: 0.0, ymin: 0.0, xmax: 17.0, ymax: 17.0 },
-                        markerGraphics: [
-                          {
-                            type: "CIMMarkerGraphic",
-                            geometry: createSymbolGeometry(shape),
-                            symbol: {
-                              type: "CIMPolygonSymbol",
-                              symbolLayers: [
-                                {
-                                  type: "CIMSolidFill",
-                                  enable: true,
-                                  color: fillColor.toJSON(),
-                                  primitiveName: "symbolFill"
-                                }
-                              ]
-                            }
-                          }
-                        ],
-                        scaleSymbolsProportionally: true,
-                        respectFrame: true,
-                        markerPlacement
-                      }
-                    ]
-                  },
-                  primitiveOverrides
-                }
-              }
+            sizeRenderer.classBreakInfos[0].symbol = createWurmanSymbol({ shape, color, primitiveOverrides, colorLocked: false });
+            sizeRenderer.visualVariables = visualVariables;
+
+            let renderer = sizeRenderer;
+
+            if(typeField){
+              const { renderer: uvr } = await typeRendererCreator.createRenderer({
+                layer,
+                view,
+                field: typeField,
+                numTypes,
+                sortBy,
+                defaultSymbolEnabled: true,
+                forBinning
+              });
+
+              uvr.uniqueValueInfos.forEach(uvi => {
+                const color = uvi?.symbol?.color || new Color("gray");
+                uvi.symbol = createWurmanSymbol({ shape, color, primitiveOverrides, colorLocked: true });
+              });
+
+              renderer = uvr;
+            }
+
+            renderer.authoringInfo = {
+              type: "reference-size",
+              referenceSizeSymbolStyle: shape,
+              visualVariables: [{
+                type: "size",
+                field,
+                normalizationField,
+                stops: sizeStops,
+                minSliderValue: minBound,
+                maxSliderValue: maxBound
+              }]
             };
 
             return {
@@ -1667,31 +1546,36 @@
                 histogramResult
               },
               minSize,
-              maxSize,
-              uniqueValueInfos
+              maxSize
             };
           }
 
-          async function updateWurmanDotRenderer(updatedValues, rendererParams){
-            const { min, max, minBound, maxBound, gridSize, referenceDataValue, minSize, maxSize  } = updatedValues;
-            const { view, layer, field, normalizationField, forBinning, markerPatternEnabled }  = rendererParams;
-            const renderer = forBinning ? layer.featureReduction?.renderer.clone() : layer.renderer.clone();
+          async function updateSizeRendererWithReferenceSize(params){
+            const { view, layer, field, normalizationField, sizeStops }  = params;
+            const renderer = Boolean(layer.featureReduction) ? layer.featureReduction?.renderer.clone() : layer.renderer.clone();
 
-            const { binSizePixels, isGrid } = await getBinSizePixels({ view, layer, forBinning, markerPatternEnabled });
+            const { binSizePixels, isGrid } = await getBinSizePixels({ view, layer, forBinning });
 
             const primitiveOverrides = getPrimitiveOverrides({
-              view, field, normalizationField, gridSize, markerPatternEnabled, minSize
-            }, {
-              minBound, maxBound, binSizePixels: maxSize || binSizePixels, isGrid, referenceDataValue
+              view, field, normalizationField, sizeStops, sizeByScaleEnabled: isGrid
             });
 
-            const data = renderer.symbol.data;
+            if(renderer.type === "unique-value"){
+              renderer.uniqueValueInfos.forEach(uvi => {
+                uvi.symbol.data.primitiveOverrides = primitiveOverrides;
+              })
+            }
 
-            const colorOverrides = data.primitiveOverrides.filter(
-              override => override.propertyName === "Color"
-            );
+            if(renderer.type === "class-breaks"){
+              renderer.classBreakInfos.forEach(cbi => {
+                cbi.symbol.data.primitiveOverrides = primitiveOverrides;
+              });
+            }
 
-            data.primitiveOverrides = colorOverrides.concat(primitiveOverrides);
+            const authInfoVV = renderer.authoringInfo.visualVariables.find( vv => vv.type === "size");
+            authInfoVV.field = field;
+            authInfoVV.normalizationField = normalizationField;
+            authInfoVV.stops = sizeStops;
 
             return renderer;
           }
@@ -1853,13 +1737,10 @@
             colorNormalizationFieldSelect.disabled = !Boolean(colorFieldSelect.value);
             colorFieldSelect.disabled = Boolean(typeFieldSelect.value);
 
-            const markerPatternEnabled = markerCheckbox.checked;
-
-            const shape = shapeSelect.value;
+            const symbolStyle = shapeSelect.value;
 
             field = forBinning ? getAggregateFieldName() : fieldSelect.value;
             normalizationField = normalizationFieldSelect.value || null;
-            const gridSize = markerPatternEnabled ? gridSizeSlider.values[0] : null;
 
             const typeField = typeFieldSelect.value && forBinning ? typeFieldSelect.value + "_mode" : typeFieldSelect.value;
             const vvField = colorFieldSelect.value || null;
@@ -1874,16 +1755,16 @@
               isGrid,
               minSize,
               maxSize
-            } = await createProportionalGridRenderer({
+            } = await createSizeRendererWithReferenceSize({
               layer,
               view,
               field,
               normalizationField,
               forBinning,
-              gridSize,
-              markerPatternEnabled,
               referenceStat,
-              shape,
+              referenceSizeOptions: {
+                symbolStyle
+              },
               typeOptions: {
                 typeField,
                 numTypes: 10,
@@ -2021,23 +1902,6 @@
               layer.featureReduction.fixedBinLevel = value;
               createRenderer();
             }
-          });
-
-          gridSizeSlider.watch("values", async ([value]) => {
-            const minSize = Math.min(...symbolSizeSlider.values);
-            const minBound = sizeSlider.stops[0].value;
-            const maxBound = sizeSlider.stops[1].value;
-            const forBinning = Boolean(layer.featureReduction);
-            const gridSize = value;
-            const markerPatternEnabled = markerCheckbox.checked;
-
-            const renderer = await updateWurmanDotRenderer({
-              min, max, minBound, maxBound, gridSize, minSize
-            }, {
-              view, layer, field, normalizationField, forBinning, markerPatternEnabled
-            });
-
-            layer.renderer = renderer;
           });
 
           async function getNumberFields(layer) {

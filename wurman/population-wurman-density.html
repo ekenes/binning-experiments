@@ -70,7 +70,7 @@
 
           const year = 2020;
           const initialViewScale = 144447.638572;
-          const binSize = 750;
+          const binSize = 750 * 0.2;
 
           const layer = new FeatureLayer({
             title: "Population (2020)",
@@ -112,7 +112,7 @@
 
           const featureReduction = {
             type: "binning",
-            fixedBinLevel: 6,
+            fixedBinLevel: 7,
 
             fields: [
               new AggregateField({
@@ -128,7 +128,7 @@
               })
             ],
 
-            labelsVisible: true,
+            labelsVisible: false,
             labelingInfo: [
               new LabelClass({
                 minScale: 36112,
@@ -352,7 +352,7 @@
                           var binWidthMeters = ${binSize};
                           var viewResolution = ${view.resolution};
                           var binWidthPixels = binWidthMeters / viewResolution;
-                          var value = $feature.Population / 3000;
+                          var value = $feature.Population / 300;
 
                           var innerRatio = IIF(value > 1, 1, value);
                           var outerSize = binWidthPixels * (${initialViewScale} / $view.scale);
