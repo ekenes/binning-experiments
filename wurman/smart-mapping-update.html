@@ -131,7 +131,8 @@
         "esri/widgets/smartMapping/SizeSlider",
         "esri/widgets/smartMapping/ColorSlider",
         "esri/widgets/Slider",
-        "esri/Color"
+        "esri/Color",
+        "esri/core/reactiveUtils"
       ], function (
         WebMap,
         MapView,
@@ -155,7 +156,8 @@
         SizeSlider,
         ColorSlider,
         Slider,
-        Color
+        Color,
+        reactiveUtils
       ) {
         (async () => {
 
@@ -473,17 +475,14 @@
 
           let min, max, minBound, maxBound, binSizePixels, isGrid, field, normalizationField;
 
-          function updateSizeSlider(stats) {
+          function updateSizeSlider(stats, sizeStops, referenceScale) {
             const { min, max, avg, stddev, minBound, maxBound, histogramResult } = stats;
 
             if(!sizeSlider){
               sizeSlider = new SizeSlider({
                 min,
                 max,
-                stops: [
-                  { value: minBound, size: 4 },
-                  { value: maxBound, size: 40 }
-                ],
+                stops: sizeStops,
                 histogramConfig: {
                   bins: histogramResult.bins,
                   average: avg,
@@ -508,14 +507,20 @@
                   layer.renderer = renderer;
                 }
               });
+
+              let previousScale = view.scale;
+              view.watch("scale", async (scale) => {
+                const scaleFactor = previousScale / scale;
+                sizeSlider.stops.forEach((stop) => {
+                  stop.size *= scaleFactor;
+                });
+                previousScale = scale;
+              });
             } else {
               sizeSlider.set({
                 min,
                 max,
-                stops: [
-                  { value: minBound, size: 4 },
-                  { value: maxBound, size: 40 }
-                ],
+                stops: sizeStops,
                 histogramConfig: {
                   bins: histogramResult.bins,
                   average: avg,
@@ -528,8 +533,9 @@
 
           const symbolSizesContainer = document.getElementById("symbol-sizes");
 
-          function updateSymbolSizeSlider(params){
-            const { minSize, maxSize } = params;
+          function updateSymbolSizeSlider(sizeStops){
+            const minSize = Math.min(...sizeStops.map(stop => stop.size));
+            const maxSize = Math.max(...sizeStops.map(stop => stop.size));
 
             if(!symbolSizeSlider){
               symbolSizeSlider = new Slider({
@@ -568,16 +574,22 @@
                 }
               });
 
-              // USE VIEW.RESOLUTION HERE
-              // const referenceResolution = view.resolution;
-              // view.watch("resolution", (resolution) => {
-              //   const factor = referenceResolution / resolution;
+              let previousScale = view.scale;
+              view.watch("scale", async (scale) => {
+                const scaleFactor = previousScale / scale;
 
-              //   const minSize = Math.min(...symbolSizeSlider.values);
-              //   const maxSize = Math.max(...symbolSizeSlider.values);
+                const values = symbolSizeSlider.values;
+                const minSize = Math.min(...values) * scaleFactor;
+                const maxSize = Math.max(...values) * scaleFactor;
 
-              //   symbolSizeSlider.values = [ minSize * factor, maxSize * factor];
-              // });
+                symbolSizeSlider.values = [ minSize, maxSize ];
+
+                const sizeStops = sizeSlider.stops;
+                sizeStops[0].size = minSize;
+                sizeStops[1].size = maxSize;
+
+                previousScale = scale;
+              });
 
             } else {
               symbolSizeSlider.values = [ minSize, maxSize ];
@@ -1523,6 +1535,7 @@
             renderer.authoringInfo = {
               type: "reference-size",
               referenceSizeSymbolStyle: shape,
+              referenceSizeReferenceScale: view.scale,
               visualVariables: [{
                 type: "size",
                 field,
@@ -1545,6 +1558,7 @@
                 maxBound,
                 histogramResult
               },
+              sizeStops,
               minSize,
               maxSize
             };
@@ -1576,6 +1590,7 @@
             authInfoVV.field = field;
             authInfoVV.normalizationField = normalizationField;
             authInfoVV.stops = sizeStops;
+            renderer.authoringInfo.referenceSizeReferenceScale = view.scale;
 
             return renderer;
           }
@@ -1754,7 +1769,8 @@
               statistics,
               isGrid,
               minSize,
-              maxSize
+              maxSize,
+              sizeStops
             } = await createSizeRendererWithReferenceSize({
               layer,
               view,
@@ -1788,11 +1804,8 @@
               layer.renderer = renderer;
             }
 
-            updateSizeSlider(statistics);
-            updateSymbolSizeSlider({
-              minSize,
-              maxSize
-            });
+            updateSizeSlider(statistics, sizeStops, view.scale);
+            updateSymbolSizeSlider(sizeStops);
 
             gridSizeSlider.disabled = isGrid;
             if(!isGrid && markerPatternEnabled){
