@@ -158,6 +158,12 @@
     ) {
       (async () => {
 
+        ///////////////////////////////////////////////
+        //
+        // App specific functions
+        //
+        ///////////////////////////////////////////////
+
         let portalItemUrl = "";
 
         function getUrlParams() {
@@ -470,10 +476,22 @@
         let colorSlider = null;
         let symbolSizeSlider = null;
 
-        let min, max, minBound, maxBound, binSizePixels, isGrid, field, normalizationField;
+        let min, max, minDataValue, maxDataValue, isGrid, field, normalizationField;
 
-        function updateSizeSlider(stats, sizeStops, referenceScale) {
-          const { min, max, avg, stddev, minBound, maxBound, histogramResult } = stats;
+        ///////////////////////////////////////////////
+        //
+        // Map Viewer Slider/UI patterns
+        //
+        ///////////////////////////////////////////////
+
+
+        function updateSizeSlider({ statistics, sizeStops, histogramResult }) {
+          const { min, max, avg, stddev } = statistics;
+
+          // sizeStops = AuthoringInfoSizeVariable.stops
+          // min = AuthoringInfoSizeVariable.minSliderValue
+          // max = AuthoringInfoSizeVariable.maxSliderValue
+          // histogramResult = histogram() query result
 
           if (!sizeSlider) {
             sizeSlider = new SizeSlider({
@@ -505,6 +523,7 @@
               }
             });
 
+            // This view watch is critical for sliders working across view scale
             let previousScale = view.scale;
             view.watch("scale", async (scale) => {
               const scaleFactor = previousScale / scale;
@@ -531,6 +550,11 @@
         const symbolSizesContainer = document.getElementById("symbol-sizes");
 
         function updateSymbolSizeSlider(sizeStops) {
+
+          // sizeStops = AuthoringInfoSizeVariable.stops
+          // min = ??? How is this already determined ???
+          // max = ??? How is this already determined ???
+
           const minSize = Math.min(...sizeStops.map(stop => stop.size));
           const maxSize = Math.max(...sizeStops.map(stop => stop.size));
 
@@ -571,6 +595,7 @@
               }
             });
 
+            // This view watch is critical for sliders working across view scale
             let previousScale = view.scale;
             view.watch("scale", async (scale) => {
               const scaleFactor = previousScale / scale;
@@ -680,7 +705,25 @@
           return null;
         }
 
-        async function getBinSizePixels(params) {
+        ///////////////////////////////////////////////
+        //
+        // Smart Mapping API statistic functions
+        //
+        ///////////////////////////////////////////////
+
+        /**
+         * Calculates spatial statistics for reference size symbols/expressions. The
+         * result includes the `maxSize` of each symbol and whether the provided layer
+         * or feature reduction has a gridded structure (i.e. `isGrid`).
+         *
+         * `maxSize` sets the maximum bound for each symbol.
+         * `isGrid` is used to indicate whether to vary symbol size by scale by default.
+         * It is also used to determine the `maxSize`. If a layer is gridded, then the sample
+         * feature for which to determine maxSize should come from the center of the view.
+         * Otherwise, another formula is used to determine maxSize as outlined below.
+         * If forBinning is true, then a grid will always be assumed to avoid overlapping symbols.
+         */
+        async function getReferenceSizeSpatialStatistics(params) {
           const { layer, view, forBinning } = params;
           const layerView = await view.whenLayerView(layer);
 
@@ -699,7 +742,7 @@
             const sampleBinHeight = sampleBin.extent.height;
 
             const binSize = sampleBinWidth < sampleBinHeight ? sampleBinWidth : sampleBinHeight;
-            const maxSize = binSize / view.resolution;
+            const maxSize = (binSize / view.resolution);
 
             return {
               maxSize,
@@ -765,7 +808,10 @@
           }
         }
 
-        function getPrimitiveOverrides(params) {
+        /**
+         * Creates primitive overrides to be use in the wurman symbol
+         */
+        function createPrimitiveOverrides(params) {
           const { view, field, normalizationField, sizeStops, sizeByScaleEnabled } = params;
           const minDataValue = sizeStops[0].value;
           const maxDataValue = sizeStops[1].value;
@@ -780,22 +826,21 @@
           } else {
             value = `$feature.${field}`;
             fields = `
-                if(!HasKey($feature, "${field}")){
-                  return null;
-                }
-                $feature.${field};
-              `;
+              if(!HasKey($feature, "${field}")){
+                return null;
+              }
+              $feature.${field};
+            `;
           }
 
           if (normalizationField) {
             value = `$feature.${field} / $feature.${normalizationField}`;
-            fields = `
-                if(!HasKey($feature, "${field}") || !HasKey($feature, "${normalizationField}")){
-                  return null;
-                }
-                $feature.${field};
-                $feature.${normalizationField};
-              `;
+            fields =
+              `if(!HasKey($feature, "${field}") || !HasKey($feature, "${normalizationField}")){
+                return null;
+              }
+              $feature.${field};
+              $feature.${normalizationField};`;
           }
 
           const outerRingExpressionInfo = {
@@ -803,15 +848,17 @@
             title: "Size in pixels of outer ring at maxScale",
             // We shouldn't have to convert to points since maxSize will likely already be in points...
             expression: sizeByScaleEnabled ? `
-                var maxSize = ${maxSize};
-                return (maxSize * (${view.scale} / $view.scale)) * 0.75;
-              ` : `${maxSize} * 0.75`,
+              var maxSize = ${maxSize};
+              var referenceScale = ${view.scale};
+              return (maxSize * (referenceScale / $view.scale)) * 0.75;
+            ` : `${maxSize} * 0.75`,
             returnType: "Default"
           };
 
           let primitiveOverrides = [
             {
               type: "CIMPrimitiveOverride",
+              // primitive name should be so unique it is unlikely that
               primitiveName: "outerRing",
               propertyName: "Size",
               valueExpressionInfo: outerRingExpressionInfo
@@ -829,16 +876,18 @@
                 expression: `
                     ${fields}
                     var value = ${value};
-
+                    var referenceScale = ${view.scale};
                     var maxSize = ${maxSize};
+                    var minSize = ${minSize};
                     var minDataValue = ${minDataValue};
                     var maxDataValue = ${maxDataValue};
-                    var ratio = ( value - minDataValue) / (maxDataValue - minDataValue );
 
+                    var ratio = ( value - minDataValue) / (maxDataValue - minDataValue );
                     var innerRatio = Constrain(ratio, 0, 1);
-                    var referenceScaleRatio = ${sizeByScaleEnabled ? `(${view.scale} / $view.scale)` : 1};
+
+                    var referenceScaleRatio = ${sizeByScaleEnabled ? `(referenceScale / $view.scale)` : 1};
                     var outerSize = maxSize * referenceScaleRatio;
-                    var innerSize = Constrain((outerSize * innerRatio) + ${minSize}, 0, outerSize);
+                    var innerSize = Constrain((outerSize * innerRatio) + minSize, minSize, outerSize);
                     // pixel to point conversion
                     return innerSize * 0.75;
                   `,
@@ -850,7 +899,10 @@
           return primitiveOverrides;
         }
 
-        function createSymbolGeometry(type) {
+        /**
+         * Symbol style creator
+         */
+        function createSymbolStyleGeometry(type) {
           const circle = {
             rings: [
               [
@@ -971,7 +1023,10 @@
           return shapeMap[type];
         }
 
-        function createWurmanSymbol({ shape, color, primitiveOverrides, colorLocked }) {
+        /**
+         * Wurman symbol creator
+         */
+        function createWurmanSymbol({ symbolStyle, color, primitiveOverrides, colorLocked }) {
           return {
             type: "cim",
             data: {
@@ -985,12 +1040,13 @@
                     colorLocked: false,
                     anchorPoint: { x: 0, y: 0 },
                     anchorPointUnits: "Relative",
+                    // Must match the primitive override name here. Needs to be unique.
                     primitiveName: "outerRing",
                     frame: { xmin: 0.0, ymin: 0.0, xmax: 17.0, ymax: 17.0 },
                     markerGraphics: [
                       {
                         type: "CIMMarkerGraphic",
-                        geometry: createSymbolGeometry(shape),
+                        geometry: createSymbolStyleGeometry(symbolStyle),
                         symbol: {
                           type: "CIMPolygonSymbol",
                           symbolLayers: [
@@ -1019,12 +1075,13 @@
                     enable: true,
                     anchorPoint: { x: 0, y: 0 },
                     anchorPointUnits: "Relative",
+                    // Must match the primitive override name here. Needs to be unique.
                     primitiveName: "innerDot",
                     frame: { xmin: 0.0, ymin: 0.0, xmax: 17.0, ymax: 17.0 },
                     markerGraphics: [
                       {
                         type: "CIMMarkerGraphic",
-                        geometry: createSymbolGeometry(shape),
+                        geometry: createSymbolStyleGeometry(symbolStyle),
                         symbol: {
                           type: "CIMPolygonSymbol",
                           symbolLayers: [
@@ -1049,6 +1106,15 @@
           };
         }
 
+        ///////////////////////////////////////////////
+        //
+        // Smart Mapping API renderer creator functions
+        //
+        ///////////////////////////////////////////////
+
+        /**
+         * Replicates a combination of size and unique value renderer creator functions. This would only apply to size renderer creator though.
+         */
         async function createSizeRendererWithReferenceSize(params) {
           const {
             layer,
@@ -1057,15 +1123,15 @@
             normalizationField,
             minValue,
             maxValue,
-            typeOptions,
-            vvOptions,
-            gridSize,
+            typeOptions,  // ignore...replicates params for types creator (for types + size testing)
+            vvOptions,   // ignore...replicates params for color creator (for bivariate testing)
             referenceSizeOptions,
             forBinning
           } = params;
 
-          const { symbolStyle: shape } = referenceSizeOptions;
+          const { symbolStyle } = referenceSizeOptions;
 
+          // ignore...replicates params for types creator (for types + size testing)
           const {
             typeField,
             numTypes,
@@ -1073,6 +1139,7 @@
             sortEnabled
           } = typeOptions;
 
+          // ignore...replicates params for color creator (for bivariate testing)
           const {
             vvField,
             vvNormalizationField,
@@ -1087,6 +1154,7 @@
             normalizationType: normalizationField ? "field" : null,
             minValue,
             maxValue,
+            defaultSymbolEnabled: false,
             forBinning
           };
 
@@ -1097,9 +1165,9 @@
             numBins: 60
           });
 
+          // default minSize of zero!
           const minSize = params.minSize ?? 0;
 
-          const defaultMin = 0;
           const percentageMax = 100;
           const percentageMin = 0;
           const ratioMin = percentageMin;
@@ -1116,31 +1184,38 @@
           const stddev1 = stats.avg + stats.stddev;
           const stddev2 = stats.avg + (2 * stats.stddev);
 
-          const maxBoundDictionary = {
-            "min": min,
-            "mean": mean,
-            "0.5-std-dev": stddevHalf,
-            "1-std-dev": stddev1,
-            "2-std-dev": stddev2,
-            "max": max
-          };
-
-          const referenceDataValue = maxBoundDictionary["2-std-dev"];
-          referenceSizeDataValue = referenceDataValue;
-
-          const maxBound =
+          const maxDataValue =
             isRatio ? ratioMax :
               isPercentage ? percentageMax :
-                maxBoundDictionary["2-std-dev"];
+              stddev2;
 
-          const minBound =
+          const minDataValue =
             isRatio ? ratioMin :
               isPercentage ? percentageMin :
                 min;
 
-          const { maxSize, isGrid } = await getBinSizePixels({ view, layer, forBinning });
+          const { maxSize, isGrid } = await getReferenceSizeSpatialStatistics({ view, layer, forBinning });
 
-          let uniqueValueInfos, colorVariable, visualVariables, colorStats, colorHistogramResult;
+          const sizeStops = [
+            { value: minDataValue, size: minSize },
+            { value: maxDataValue, size: maxSize }
+          ];
+
+          const primitiveOverrides = createPrimitiveOverrides({
+            view, field, normalizationField, sizeStops, sizeByScaleEnabled: isGrid
+          });
+
+          sizeRenderer.visualVariables = null;
+          sizeRenderer.backgroundFillSymbol = null;
+          const color = sizeRenderer?.classBreakInfos[0]?.symbol?.color;
+
+          sizeRenderer.classBreakInfos[0].symbol = createWurmanSymbol({ symbolStyle, color, primitiveOverrides, colorLocked: false });
+
+          let renderer = sizeRenderer;
+
+          /**
+           * IGNORE... REPLICATES COLOR CREATOR. This would remain in separate creator method.
+           */
 
           if (vvField) {
             const { visualVariable: colorVariable, statistics: colorStats } = await colorRendererCreator.createVisualVariable({
@@ -1153,9 +1228,9 @@
               forBinning
             });
 
-            visualVariables = [colorVariable];
+            renderer.visualVariables = [ colorVariable ];
 
-            colorHistogramResult = await histogram({
+            const colorHistogramResult = await histogram({
               layer,
               view,
               field: vvField,
@@ -1168,22 +1243,9 @@
             updateColorSlider(colorVariable, colorStats, colorHistogramResult);
           }
 
-          const sizeStops = [
-            { value: minBound, size: minSize },
-            { value: maxBound, size: maxSize }
-          ];
-
-          const primitiveOverrides = getPrimitiveOverrides({
-            view, field, normalizationField, sizeStops, sizeByScaleEnabled: isGrid
-          });
-
-          const color = sizeRenderer?.classBreakInfos[0]?.symbol?.color;
-
-          sizeRenderer.classBreakInfos[0].symbol = createWurmanSymbol({ shape, color, primitiveOverrides, colorLocked: false });
-          sizeRenderer.visualVariables = visualVariables;
-
-          let renderer = sizeRenderer;
-
+          /**
+           * IGNORE... REPLICATES TYPE CREATOR. This would remain in separate creator method.
+           */
           if (typeField) {
             const { renderer: uvr } = await typeRendererCreator.createRenderer({
               layer,
@@ -1191,13 +1253,13 @@
               field: typeField,
               numTypes,
               sortBy,
-              defaultSymbolEnabled: true,
+              defaultSymbolEnabled: false,
               forBinning
             });
 
             uvr.uniqueValueInfos.forEach(uvi => {
               const color = uvi?.symbol?.color || new Color("gray");
-              uvi.symbol = createWurmanSymbol({ shape, color, primitiveOverrides, colorLocked: true });
+              uvi.symbol = createWurmanSymbol({ symbolStyle, color, primitiveOverrides, colorLocked: true });
             });
 
             renderer = uvr;
@@ -1205,46 +1267,48 @@
 
           renderer.authoringInfo = {
             type: "reference-size",
-            referenceSizeSymbolStyle: shape,
-            referenceSizeReferenceScale: view.scale,
+            referenceSizeSymbolStyle: symbolStyle,
             visualVariables: [{
               type: "size",
               field,
-              normalizationField,
+              normalizationField,  // is this needed? Probably?
               stops: sizeStops,
-              minSliderValue: minBound,
-              maxSliderValue: maxBound
+              minSliderValue: minDataValue,
+              maxSliderValue: maxDataValue
             }]
           };
 
           return {
             renderer,
-            isGrid,
             statistics: {
               avg: stats.avg,
               stddev: stats.stddev,
               min,
               max,
-              minBound,
-              maxBound,
-              histogramResult
+              isGrid
             },
-            sizeStops,
-            minSize,
-            maxSize
+            histogramResult,
+            sizeStops
           };
         }
 
+        /**
+         * This update method is critical for map viewer to update style from sliders.
+         */
         async function updateSizeRendererWithReferenceSize(params) {
           const { view, layer, field, normalizationField, sizeStops } = params;
-          const renderer = Boolean(layer.featureReduction) ? layer.featureReduction?.renderer.clone() : layer.renderer.clone();
+          // const sizeByScaleEnabled = Boolean(layer.featureReduction);
+          const renderer = layer.featureReduction ? layer.featureReduction?.renderer.clone() : layer.renderer.clone();
 
-          const { binSizePixels, isGrid } = await getBinSizePixels({ view, layer, forBinning });
+          const { maxSize, isGrid } = await getReferenceSizeSpatialStatistics({ view, layer, forBinning });
 
-          const primitiveOverrides = getPrimitiveOverrides({
+          const primitiveOverrides = createPrimitiveOverrides({
             view, field, normalizationField, sizeStops, sizeByScaleEnabled: isGrid
           });
 
+          // THIS WILL NEED TO ACCOUNT FOR ANY RENDERER TYPE THAT ACCEPTS A SIZE VISUAL VARIABLE
+          // THIS PORTION JUST SHOWS AN EXAMPLE OF UNIQUE-VALUE AND CLASS-BREAKS.
+          // This function should also account for SimpleRenderer
           if (renderer.type === "unique-value") {
             renderer.uniqueValueInfos.forEach(uvi => {
               uvi.symbol.data.primitiveOverrides = primitiveOverrides;
@@ -1257,6 +1321,10 @@
             });
           }
 
+          if (renderer.type === "simple") {
+            renderer.symbol.data.primitiveOverrides = primitiveOverrides;
+          }
+
           const authInfoVV = renderer.authoringInfo.visualVariables.find(vv => vv.type === "size");
           authInfoVV.field = field;
           authInfoVV.normalizationField = normalizationField;
@@ -1265,6 +1333,13 @@
 
           return renderer;
         }
+
+
+        ///////////////////////////////////////////////
+        //
+        // More app specific functions
+        //
+        ///////////////////////////////////////////////
 
         view.ui.add(
           new Home({
@@ -1438,9 +1513,7 @@
           const {
             renderer,
             statistics,
-            isGrid,
-            minSize,
-            maxSize,
+            histogramResult,
             sizeStops
           } = await createSizeRendererWithReferenceSize({
             layer,
@@ -1475,17 +1548,8 @@
             layer.renderer = renderer;
           }
 
-          updateSizeSlider(statistics, sizeStops, view.scale);
+          updateSizeSlider({ statistics, sizeStops, histogramResult });
           updateSymbolSizeSlider(sizeStops);
-
-          gridSizeSlider.disabled = isGrid;
-          if (!isGrid && markerPatternEnabled) {
-            gridResolutionUI.style.display = "block";
-            markerCheckboxContainer.style.display = "block";
-          }
-          if (isGrid) {
-            markerCheckboxContainer.style.display = "none";
-          }
         }
 
         function getAggregateFieldName() {
