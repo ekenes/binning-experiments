@@ -742,7 +742,8 @@
             const sampleBinHeight = sampleBin.extent.height;
 
             const binSize = sampleBinWidth < sampleBinHeight ? sampleBinWidth : sampleBinHeight;
-            const maxSize = (binSize / view.resolution);
+            // pixel to point conversion
+            const maxSize = (binSize / view.resolution) * 0.75;
 
             return {
               maxSize,
@@ -850,8 +851,8 @@
             expression: sizeByScaleEnabled ? `
               var maxSize = ${maxSize};
               var referenceScale = ${view.scale};
-              return (maxSize * (referenceScale / $view.scale)) * 0.75;
-            ` : `${maxSize} * 0.75`,
+              return (maxSize * (referenceScale / $view.scale));
+            ` : `${maxSize}`,
             returnType: "Default"
           };
 
@@ -870,26 +871,22 @@
               valueExpressionInfo: {
                 type: "CIMExpressionInfo",
                 title: "Size in pixels of inner ring at maxScale",
-                // outerSize is the pixel size at the largest scale
-                // The innerSize is determined by multiplying
-                // the outerSize by the forest ratio
                 expression: `
                     ${fields}
                     var value = ${value};
+
                     var referenceScale = ${view.scale};
-                    var maxSize = ${maxSize};
-                    var minSize = ${minSize};
+                    var referenceScaleRatio = ${sizeByScaleEnabled ? `(referenceScale / $view.scale)` : 1};
+                    var maxSize = ${maxSize} * referenceScaleRatio;
+                    var minSize = ${minSize} * referenceScaleRatio;
+
                     var minDataValue = ${minDataValue};
                     var maxDataValue = ${maxDataValue};
 
-                    var ratio = ( value - minDataValue) / (maxDataValue - minDataValue );
-                    var innerRatio = Constrain(ratio, 0, 1);
+                    var ratio = Constrain(( value - minDataValue ) / ( maxDataValue - minDataValue ), 0, 1);
 
-                    var referenceScaleRatio = ${sizeByScaleEnabled ? `(referenceScale / $view.scale)` : 1};
-                    var outerSize = maxSize * referenceScaleRatio;
-                    var innerSize = Constrain((outerSize * innerRatio) + minSize, minSize, outerSize);
-                    // pixel to point conversion
-                    return innerSize * 0.75;
+                    var innerDotSize = Constrain(maxSize * ratio, minSize, maxSize);
+                    return innerDotSize;
                   `,
                 returnType: "Default"
               }
