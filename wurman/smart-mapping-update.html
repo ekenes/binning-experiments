@@ -1263,17 +1263,29 @@
           }
 
           renderer.authoringInfo = {
-            type: "reference-size",
-            referenceSizeSymbolStyle: symbolStyle,
             visualVariables: [{
-              type: "size",
+              type: "sizeInfo",
+              sizeInfoType: "referenceSize",
+              referenceSizeSymbolStyle: symbolStyle,
               field,
-              normalizationField,  // is this needed? Probably?
-              stops: sizeStops,
+              normalizationField,
+              sizeStops,
               minSliderValue: minDataValue,
               maxSliderValue: maxDataValue
             }]
           };
+
+          console.log(JSON.stringify(renderer));
+          console.log(JSON.stringify({
+              type: "sizeInfo",
+              sizeInfoType: "referenceSize",
+              referenceSizeSymbolStyle: symbolStyle,
+              field,
+              normalizationField,
+              sizeStops,
+              minSliderValue: minDataValue,
+              maxSliderValue: maxDataValue
+            }));
 
           return {
             renderer,
