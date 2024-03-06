@@ -784,29 +784,34 @@
           });
 
           if(typeField){
-            const typeRendererResult = await typeRendererCreator.createRenderer({
+            const { renderer: typeRenderer } = await typeRendererCreator.createRenderer({
               layer, view, field: typeField
             });
 
             const referenceSizeSymbol = renderer.classBreakInfos[0].symbol;
 
-            typeRendererResult.renderer.uniqueValueInfos.forEach(uvi => {
+            typeRenderer.uniqueValueInfos.forEach(uvi => {
               const color = uvi?.symbol?.color || new Color("gray");
               const symbol = referenceSizeSymbol.clone();
               cimSymbolUtils.applyCIMSymbolColor(symbol, color, "fill-and-outline");
               uvi.symbol = symbol;
             });
 
-            typeRendererResult.renderer.authoringInfo = renderer.authoringInfo;
+            typeRenderer.authoringInfo = renderer.authoringInfo;
 
-            renderer = typeRendererResult.renderer.clone();
+            renderer = typeRenderer.clone();
 
-          } else if(vvField){
-            const { visualVariable, statistics } = await colorRendererCreator.createContinuousRenderer({
+          } else if(vvField){s
+            const { visualVariable, statistics, renderer: colorRenderer } = await colorRendererCreator.createContinuousRenderer({
               layer, view, field: vvField, normalizationField: vvNormalizationField, theme
             });
 
             renderer.visualVariables.push(visualVariable);
+
+            if(colorRenderer.authoringInfo?.visualVariables?.length > 0){
+              const authoringInfoColorVariable = colorRenderer.authoringInfo.visualVariables.find(vv => vv.type === "color");
+              renderer.authoringInfo.visualVariables.push(authoringInfoColorVariable);
+            }
 
             updateColorSlider({ visualVariable, statistics });
           }
