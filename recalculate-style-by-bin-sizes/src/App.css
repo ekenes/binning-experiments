@@ -7,13 +7,29 @@
 }
 
 #root, arcgis-map {
-  height: 95%;
+  height: 90%;
   width: 100%;
 }
 
-.slider-content {
+.controls {
   display: flex;
-  flex-direction: column-reverse;
-  padding: 10px;
+  flex-direction: row;
+  /* padding: 10px; */
   background-color: white;
+  width: 100%;
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+.slider-content {
+  width: 25vw;
+  padding: 10px;
+}
+.switch-content {
+  /* max-width: 10px; */
+  padding: 10px;
+}
+
+h2{
+  padding-right: 20%;
 }
