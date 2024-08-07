@@ -185,7 +185,7 @@
 
           if (!url) {
             if (!id) {
-              id = "94b553493bcf432fad439adbde231fbb";
+              id = "91e429d40d154c80a4e3dadc23a44a7b";
             }
 
             if (!layerId) {
@@ -451,8 +451,9 @@
 
               const sizeStops = sizeSlider.stops;
               const oldRenderer = layer?.featureReduction?.renderer || layer.renderer;
+              const forBinning = Boolean(layer?.featureReduction);
               const renderer = await sizeRendererCreator.updateRendererWithReferenceSize({
-                view, layer, renderer: oldRenderer,  field, normalizationField, sizeStops
+                view, layer, renderer: oldRenderer,  field, normalizationField, sizeStops, forBinning
               });
 
               if (layer.featureReduction) {
