@@ -1,0 +1,19 @@
+#root, html, body {
+  padding: 0;
+  margin: 0;
+  height: 100%;
+  width: 100%;
+  /* overflow: hidden; */
+}
+
+#root, arcgis-map {
+  height: 95%;
+  width: 100%;
+}
+
+.slider-content {
+  display: flex;
+  flex-direction: column-reverse;
+  padding: 10px;
+  background-color: white;
+}
