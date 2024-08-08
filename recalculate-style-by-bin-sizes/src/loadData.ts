@@ -1,5 +1,3 @@
-import WebMap from "@arcgis/core/WebMap";
-
 export interface UrlParams {
   layerIndex: number;
   id: string;
@@ -19,16 +17,17 @@ function setUrlParams(id: string, layerId: string | number, portal: string) {
 
 export function getUrlParams(): UrlParams {
   const queryParams = document.location.search.substring(1);
-  let result: any = {};
+  const result: { id?: string, portal?: string, layerId?: string} = {};
 
   queryParams.split("&").forEach(function (part) {
-    var item = part.split("=");
+    const item = part.split("=");
     result[item[0]] = decodeURIComponent(item[1]);
   });
 
-  let { id, portal, layerId } = result;
+  let { id, portal } = result;
+  const { layerId } = result;
 
-  let layerIndex = parseInt(layerId);
+  let layerIndex = parseInt(layerId!);
 
   if (!id) {
     id = defaultItemId;
