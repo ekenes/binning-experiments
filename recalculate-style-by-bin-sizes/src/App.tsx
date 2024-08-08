@@ -14,6 +14,7 @@ import {
   CalciteSlider,
   CalciteSwitch,
 } from "@esri/calcite-components-react";
+import { regenerateColorRenderer } from "./rendererUtils";
 
 function App() {
   const mapRef = useRef<HTMLArcgisMapElement | null>(null);
@@ -52,7 +53,7 @@ function App() {
     layer.featureReduction = featureReduction;
 
     if (regenerateEnabled) {
-      // do something to regenerate the renderer
+      regenerateColorRenderer({ layer, view: mapRef.current!.view });
     }
 
   }, [fixedBinLevel, layer, regenerateEnabled]);
