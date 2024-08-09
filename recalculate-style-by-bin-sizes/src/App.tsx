@@ -232,7 +232,7 @@ function App() {
             itemId={webmapId}
             onArcgisViewReadyChange={initialize}
           >
-            <ArcgisLegend position="bottom-left" />
+            <ArcgisLegend position="bottom-right" />
           </ArcgisMap>
         </div>
       </CalciteShell>
