@@ -37,6 +37,8 @@ import {
 } from "@esri/calcite-components-react";
 import { regenerateRenderer } from "./rendererUtils";
 
+import { when } from "@arcgis/core/core/reactiveUtils";
+
 function App() {
   const mapRef = useRef<HTMLArcgisMapElement | null>(null);
   const layerListRef = useRef<HTMLArcgisLayerListElement | null>(null);
@@ -49,17 +51,9 @@ function App() {
     const mapElement = mapRef.current;
     if (!mapElement) return;
 
-    const { id, portal, layerIndex } = getUrlParams();
+    const { id, portal } = getUrlParams();
     esriConfig.portalUrl = portal!;
     setWebmapId(id);
-
-    const selectedLayer = (
-      mapElement.map.layers.getItemAt(0) as __esri.GroupLayer
-    ).layers.getItemAt(layerIndex);
-    (mapElement.map.layers.getItemAt(0) as __esri.GroupLayer).layers.forEach(
-      (l, i) => (l.visible = i === layerIndex)
-    );
-    setLayer(selectedLayer as __esri.FeatureLayer);
 
     const view = mapElement?.view;
     view!.padding = {
@@ -121,8 +115,31 @@ function App() {
     ).hidden = true;
   };
 
+  const listItemCreatedFunction = (event) => {
+    const { item } = event;
+    const l = item.layer;
+
+    if (
+      l.type !== "feature" ||
+      l === layer ||
+      l?.featureReduction?.type !== "binning"
+    ) {
+      return;
+    }
+
+    if(!layer && l.visible) {
+      setLayer(l as __esri.FeatureLayer);
+    }
+
+    when(
+      () => l.visible,
+      () => {
+        setLayer(l as __esri.FeatureLayer);
+      }
+    );
+  };
+
   useEffect(() => {
-    console.log(fixedBinLevel);
     if (!layer || !fixedBinLevel) {
       return;
     }
@@ -167,6 +184,7 @@ function App() {
             <ArcgisLayerList
               referenceElement="#map"
               ref={layerListRef}
+              listItemCreatedFunction={listItemCreatedFunction}
             ></ArcgisLayerList>
           </CalcitePanel>
           <CalcitePanel
