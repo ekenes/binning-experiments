@@ -5,16 +5,16 @@ import {
 import {
   createContinuousRenderer as createContinuousSizeRenderer,
   createAgeRenderer as createAgeSizeRenderer,
+  updateRendererWithReferenceSize,
 } from "@arcgis/core/smartMapping/renderers/size";
-import {
-  createRenderer as createRelationshipRenderer,
-} from "@arcgis/core/smartMapping/renderers/relationship";
-import {
-  createRenderer as createDotDensityRenderer,
-} from "@arcgis/core/smartMapping/renderers/dotDensity";
+import { createRenderer as createRelationshipRenderer } from "@arcgis/core/smartMapping/renderers/relationship";
+import { createRenderer as createDotDensityRenderer } from "@arcgis/core/smartMapping/renderers/dotDensity";
+
+import SizeStop from "@arcgis/core/renderers/visualVariables/support/SizeStop";
 
 import classBreaks from "@arcgis/core/smartMapping/statistics/classBreaks";
-
+import summaryStatistics from "@arcgis/core/smartMapping/statistics/summaryStatistics";
+import referenceSize from "@arcgis/core/smartMapping/heuristics/referenceSize";
 import { createVisualVariable as createOpacityVisualVariable } from "@arcgis/core/smartMapping/renderers/opacity";
 import Color from "@arcgis/core/Color";
 interface RegenerateColorVariableParams {
@@ -278,12 +278,64 @@ async function regenerateVisualVariables(params: RegenerateRendererParams) {
   return await Promise.all(newVisualVariables);
 }
 
-async function regenerateClassBreaksRenderer(params: RegenerateRendererParams) {
+async function regenerateReferenceSizeRenderer(
+  params: RegenerateRendererParams
+) {
   const { layer, view } = params;
   const featureReduction =
     layer.featureReduction as __esri.FeatureReductionBinning;
 
   const renderer = (
+    (featureReduction.renderer as __esri.ClassBreaksRenderer) ||
+    __esri.UniqueValueRenderer
+  ).clone();
+
+  const { authoringInfo } = renderer;
+
+  const referenceSizeVariable = authoringInfo?.visualVariables.find(
+    (vv) => vv.type === "size" && vv.theme === "reference-size"
+  );
+
+  if (referenceSizeVariable) {
+    const { field, normalizationField } = referenceSizeVariable;
+
+    const { avg, stddev } = await summaryStatistics({
+      layer,
+      view,
+      field,
+      normalizationField,
+      forBinning: true,
+    });
+    const maxValue = avg + 2 * stddev;
+
+    const { size } = await referenceSize({
+      layer,
+      view,
+      forBinning: true,
+    });
+
+    const sizeStops = [
+      new SizeStop({ value: 0, size: 1 }),
+      new SizeStop({ value: maxValue, size }),
+    ];
+
+    const renderer = updateRendererWithReferenceSize({
+      layer,
+      view,
+      sizeStops,
+      forBinning: true,
+    });
+    return renderer;
+  }
+  return renderer;
+}
+
+async function regenerateClassBreaksRenderer(params: RegenerateRendererParams) {
+  const { layer, view } = params;
+  const featureReduction =
+    layer.featureReduction as __esri.FeatureReductionBinning;
+
+  let renderer = (
     featureReduction.renderer as __esri.ClassBreaksRenderer
   ).clone();
 
@@ -292,39 +344,47 @@ async function regenerateClassBreaksRenderer(params: RegenerateRendererParams) {
 
   const styleType = authoringInfo?.type;
 
-  if (!styleType) {
-    const newVisualVariables = await regenerateVisualVariables(params);
-    renderer.visualVariables = newVisualVariables;
-    return renderer;
-  }
-
   if (styleType === "univariate-color-size") {
     console.log("figure this out later");
     return renderer;
   }
 
-  const { classificationMethod, standardDeviationInterval } = authoringInfo;
-  const numClasses = renderer.classBreakInfos.length;
+  if (renderer.classBreakInfos.length > 1) {
+    const { classificationMethod, standardDeviationInterval } = authoringInfo;
+    const numClasses = renderer.classBreakInfos.length;
 
-  const { classBreakInfos } = await classBreaks({
-    layer,
-    view,
-    field,
-    normalizationField,
-    valueExpression,
-    classificationMethod:
-      classificationMethod as __esri.classBreaksClassBreaksParams["classificationMethod"],
-    standardDeviationInterval,
-    numClasses,
-    forBinning: true,
-  });
+    const { classBreakInfos } = await classBreaks({
+      layer,
+      view,
+      field,
+      normalizationField,
+      valueExpression,
+      classificationMethod:
+        classificationMethod as __esri.classBreaksClassBreaksParams["classificationMethod"],
+      standardDeviationInterval,
+      numClasses,
+      forBinning: true,
+    });
 
-  renderer.classBreakInfos.forEach((info, i) => {
-    info.minValue = classBreakInfos[i].minValue;
-    info.maxValue = classBreakInfos[i].maxValue;
-    info.label = classBreakInfos[i].label;
-  });
+    renderer.classBreakInfos.forEach((info, i) => {
+      info.minValue = classBreakInfos[i].minValue;
+      info.maxValue = classBreakInfos[i].maxValue;
+      info.label = classBreakInfos[i].label;
+    });
+  }
 
+  const includesReferenceSize = authoringInfo?.visualVariables?.some(
+    (vv) => vv.type === "size" && vv.theme === "reference-size"
+  );
+
+  if (includesReferenceSize) {
+    renderer = (await regenerateReferenceSizeRenderer(
+      params
+    )) as __esri.ClassBreaksRenderer;
+  }
+
+  const newVisualVariables = await regenerateVisualVariables(params);
+  renderer.visualVariables = newVisualVariables;
   return renderer;
 }
 
@@ -333,7 +393,7 @@ async function regenerateUniqueValueRenderer(params: RegenerateRendererParams) {
   const featureReduction =
     layer.featureReduction as __esri.FeatureReductionBinning;
 
-  const renderer = (
+  let renderer = (
     featureReduction.renderer as __esri.UniqueValueRenderer
   ).clone();
 
@@ -341,7 +401,7 @@ async function regenerateUniqueValueRenderer(params: RegenerateRendererParams) {
 
   const styleType = authoringInfo?.type;
 
-  if (styleType === "relationship"){
+  if (styleType === "relationship") {
     const { field1, field2, focus, numClasses } = authoringInfo;
     const response = await createRelationshipRenderer({
       layer,
@@ -355,6 +415,16 @@ async function regenerateUniqueValueRenderer(params: RegenerateRendererParams) {
     renderer.valueExpression = response.renderer.valueExpression;
   }
 
+  const includesReferenceSize = authoringInfo?.visualVariables?.some(
+    (vv) => vv.type === "size" && vv.theme === "reference-size"
+  );
+
+  if (includesReferenceSize) {
+    renderer = (await regenerateReferenceSizeRenderer(
+      params
+    )) as __esri.UniqueValueRenderer;
+  }
+
   const newVisualVariables = await regenerateVisualVariables(params);
   renderer.visualVariables = newVisualVariables;
 
@@ -366,7 +436,9 @@ async function regenerateDotDensityRenderer(params: RegenerateRendererParams) {
   const featureReduction =
     layer.featureReduction as __esri.FeatureReductionBinning;
 
-  const renderer = (featureReduction.renderer as __esri.DotDensityRenderer).clone();
+  const renderer = (
+    featureReduction.renderer as __esri.DotDensityRenderer
+  ).clone();
 
   const response = await createDotDensityRenderer({
     layer,
@@ -390,7 +462,9 @@ async function regeneratePieChartRenderer(params: RegenerateRendererParams) {
   const featureReduction =
     layer.featureReduction as __esri.FeatureReductionBinning;
 
-  const renderer = (featureReduction.renderer as __esri.PieChartRenderer).clone();
+  const renderer = (
+    featureReduction.renderer as __esri.PieChartRenderer
+  ).clone();
 
   const newVisualVariables = await regenerateVisualVariables(params);
   renderer.visualVariables = newVisualVariables as __esri.SizeVariable[];
