@@ -39,6 +39,7 @@ import { regenerateRenderer } from "./rendererUtils";
 
 function App() {
   const mapRef = useRef<HTMLArcgisMapElement | null>(null);
+  const layerListRef = useRef<HTMLArcgisLayerListElement | null>(null);
   const [webmapId, setWebmapId] = useState<string | undefined>(defaultItemId);
   const [fixedBinLevel, setFixedBinLevel] = useState<number>(5);
   const [layer, setLayer] = useState<__esri.FeatureLayer>(null!);
@@ -62,7 +63,7 @@ function App() {
 
     const view = mapElement?.view;
     view!.padding = {
-      left: 49
+      left: 49,
     };
     const webmap = view?.map as __esri.WebMap;
 
@@ -78,14 +79,22 @@ function App() {
       }
 
       if (activeWidget) {
-        (document.querySelector(`[data-action-id=${activeWidget}]`) as HTMLCalciteActionElement)!.active = false;
-        (document.querySelector(`[data-panel-id=${activeWidget}]`) as HTMLCalcitePanelElement)!.hidden = true;
+        (document.querySelector(
+          `[data-action-id=${activeWidget}]`
+        ) as HTMLCalciteActionElement)!.active = false;
+        (document.querySelector(
+          `[data-panel-id=${activeWidget}]`
+        ) as HTMLCalcitePanelElement)!.hidden = true;
       }
 
       const nextWidget = target.dataset.actionId;
       if (nextWidget !== activeWidget) {
-        (document.querySelector(`[data-action-id=${nextWidget}]`) as HTMLCalciteActionElement)!.active = true;
-        (document.querySelector(`[data-panel-id=${nextWidget}]`) as HTMLCalcitePanelElement)!.hidden = false;
+        (document.querySelector(
+          `[data-action-id=${nextWidget}]`
+        ) as HTMLCalciteActionElement)!.active = true;
+        (document.querySelector(
+          `[data-panel-id=${nextWidget}]`
+        ) as HTMLCalcitePanelElement)!.hidden = false;
         activeWidget = nextWidget;
       } else {
         activeWidget = null;
@@ -100,16 +109,16 @@ function App() {
     actionBar.addEventListener("onCalciteActionBarToggle", () => {
       actionBarExpanded = !actionBarExpanded;
       view!.padding = {
-        left: actionBarExpanded ? 135 : 49
+        left: actionBarExpanded ? 135 : 49,
       };
     });
 
-    (document.querySelector("calcite-shell") as HTMLCalciteShellElement).hidden = false;
-    (document.querySelector("calcite-loader") as HTMLCalciteLoaderElement).hidden = true;
-
-    const layerListElement = document.querySelector<HTMLArcgisLayerListElement>("arcgis-layer-list");
-    console.log(layerListElement);
-
+    (
+      document.querySelector("calcite-shell") as HTMLCalciteShellElement
+    ).hidden = false;
+    (
+      document.querySelector("calcite-loader") as HTMLCalciteLoaderElement
+    ).hidden = true;
   };
 
   useEffect(() => {
@@ -131,77 +140,84 @@ function App() {
 
   return (
     <>
-    <CalciteLoader label="Loading"></CalciteLoader>
-    <CalciteShell contentBehind={true}>
-      <h2 id="header-title" slot="header">
-        Feature Reduction Binning
-      </h2>
-      <CalciteShellPanel slot="panel-start" displayMode="float">
-        <CalciteActionBar slot="action-bar">
-          <CalciteAction data-action-id="layers" icon="layers" text="Layers" />
-          <CalciteAction
-            data-action-id="controls"
-            icon="sliders-horizontal"
-            text="Controls"
-          />
-        </CalciteActionBar>
-        <CalcitePanel
-          heading="Layers"
-          height-scale="l"
-          data-panel-id="layers"
-          hidden
-        >
-          <ArcgisLayerList referenceElement="#map"></ArcgisLayerList>
-        </CalcitePanel>
-        <CalcitePanel
-          heading="Controls"
-          height-scale="l"
-          data-panel-id="controls"
-          hidden
-        >
-          <div className="controls">
-            <div className="switch-content">
-              <CalciteLabel layout="inline" alignment="start">
-                Regenerate renderer
-                <CalciteSwitch
-                  checked={regenerateEnabled}
-                  onCalciteSwitchChange={(e) => {
-                    setRegenerateEnabled(e.target.checked);
-                  }}
-                />
-              </CalciteLabel>
+      <CalciteLoader label="Loading"></CalciteLoader>
+      <CalciteShell contentBehind={true}>
+        <h2 id="header-title" slot="header">
+          Feature Reduction Binning
+        </h2>
+        <CalciteShellPanel slot="panel-start" displayMode="float">
+          <CalciteActionBar slot="action-bar">
+            <CalciteAction
+              data-action-id="layers"
+              icon="layers"
+              text="Layers"
+            />
+            <CalciteAction
+              data-action-id="controls"
+              icon="sliders-horizontal"
+              text="Controls"
+            />
+          </CalciteActionBar>
+          <CalcitePanel
+            heading="Layers"
+            height-scale="l"
+            data-panel-id="layers"
+            hidden
+          >
+            <ArcgisLayerList
+              referenceElement="#map"
+              ref={layerListRef}
+            ></ArcgisLayerList>
+          </CalcitePanel>
+          <CalcitePanel
+            heading="Controls"
+            height-scale="l"
+            data-panel-id="controls"
+            hidden
+          >
+            <div className="controls">
+              <div className="switch-content">
+                <CalciteLabel layout="inline" alignment="start">
+                  Regenerate renderer
+                  <CalciteSwitch
+                    checked={regenerateEnabled}
+                    onCalciteSwitchChange={(e) => {
+                      setRegenerateEnabled(e.target.checked);
+                    }}
+                  />
+                </CalciteLabel>
+              </div>
+              <div className="slider-content">
+                <CalciteLabel layout="default">
+                  Fixed Bin Level
+                  <CalciteSlider
+                    ticks={9}
+                    labelHandles={true}
+                    min={1}
+                    max={9}
+                    step={1}
+                    value={fixedBinLevel}
+                    onCalciteSliderChange={(e) => {
+                      setFixedBinLevel(e.target.value as number);
+                    }}
+                  ></CalciteSlider>
+                </CalciteLabel>
+              </div>
             </div>
-            <div className="slider-content">
-              <CalciteLabel layout="default">
-                Fixed Bin Level
-                <CalciteSlider
-                  ticks={9}
-                  labelHandles={true}
-                  min={1}
-                  max={9}
-                  step={1}
-                  value={fixedBinLevel}
-                  onCalciteSliderChange={(e) => {
-                    setFixedBinLevel(e.target.value as number);
-                  }}
-                ></CalciteSlider>
-              </CalciteLabel>
-            </div>
-          </div>
-        </CalcitePanel>
-      </CalciteShellPanel>
-      <div className="map-only" id="map-container">
-        <ArcgisMap
-          id="map"
-          class="map-only"
-          ref={mapRef}
-          itemId={webmapId}
-          onArcgisViewReadyChange={initialize}
-        >
-          <ArcgisLegend position="bottom-left" />
-        </ArcgisMap>
-      </div>
-    </CalciteShell>
+          </CalcitePanel>
+        </CalciteShellPanel>
+        <div className="map-only" id="map-container">
+          <ArcgisMap
+            id="map"
+            class="map-only"
+            ref={mapRef}
+            itemId={webmapId}
+            onArcgisViewReadyChange={initialize}
+          >
+            <ArcgisLegend position="bottom-left" />
+          </ArcgisMap>
+        </div>
+      </CalciteShell>
     </>
   );
 }
