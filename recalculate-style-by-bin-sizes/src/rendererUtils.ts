@@ -9,6 +9,7 @@ import {
 } from "@arcgis/core/smartMapping/renderers/size";
 import { createRenderer as createRelationshipRenderer } from "@arcgis/core/smartMapping/renderers/relationship";
 import { createRenderer as createDotDensityRenderer } from "@arcgis/core/smartMapping/renderers/dotDensity";
+import { createContinuousRenderer as createUnivariateRenderer } from "@arcgis/core/smartMapping/renderers/univariateColorSize";
 
 import SizeStop from "@arcgis/core/renderers/visualVariables/support/SizeStop";
 
@@ -181,7 +182,14 @@ async function regenerateOpacityVariable(
   return visualVariable;
 }
 
-async function regenerateVisualVariables(params: RegenerateRendererParams) {
+async function regenerateVisualVariables(
+  params: RegenerateRendererParams,
+  vvSubset?: __esri.VisualVariable[]
+) {
+  if (vvSubset && vvSubset.length === 0) {
+    return vvSubset;
+  }
+
   const { layer, view } = params;
   const featureReduction =
     layer.featureReduction as __esri.FeatureReductionBinning;
@@ -196,7 +204,9 @@ async function regenerateVisualVariables(params: RegenerateRendererParams) {
     return visualVariables;
   }
 
-  const newVisualVariables = visualVariables
+  const vv = vvSubset ? vvSubset : visualVariables;
+
+  const newVisualVariables = vv
     .filter(
       (vv) =>
         !(
@@ -353,6 +363,84 @@ async function regenerateReferenceSizeRenderer(
   return renderer;
 }
 
+interface RegenerateUnivariateRendererParams {
+  layer: __esri.FeatureLayer;
+  view: __esri.MapView;
+  renderer: __esri.ClassBreaksRenderer;
+}
+
+async function regenerateUnivariateColorSizeRenderer(
+  params: RegenerateUnivariateRendererParams
+) {
+  const { layer, renderer, view } = params;
+  const {
+    field,
+    normalizationField,
+    valueExpression,
+    valueExpressionTitle,
+    authoringInfo,
+  } = renderer;
+  const { univariateTheme } = authoringInfo;
+
+  const isContinuous = renderer.visualVariables.some(
+    (vv) => vv.type === "color"
+  );
+
+  const { renderer: generatedRenderer } = await createUnivariateRenderer({
+    layer,
+    view,
+    field,
+    normalizationField,
+    valueExpression,
+    valueExpressionTitle,
+    theme: univariateTheme,
+    forBinning: true,
+    colorOptions: {
+      isContinuous,
+    },
+    sizeOptions: {
+      sizeOptimizationEnabled: univariateTheme !== "above-and-below",
+    },
+  });
+
+  const newRenderer = renderer.clone();
+
+  newRenderer.classBreakInfos.forEach((info, i) => {
+    info.minValue = generatedRenderer.classBreakInfos[i].minValue;
+    info.maxValue = generatedRenderer.classBreakInfos[i].maxValue;
+    info.label = generatedRenderer.classBreakInfos[i].label;
+  });
+
+  if (isContinuous) {
+    const colorVariable = newRenderer.visualVariables.find(
+      (vv) => vv.type === "color"
+    ) as __esri.ColorVariable;
+    const generatedColorVariable = generatedRenderer.visualVariables.find(
+      (vv) => vv.type === "color"
+    ) as __esri.ColorVariable;
+
+    generatedColorVariable.stops.forEach((stop, i) => {
+      stop.color = colorVariable.stops[i].color;
+    });
+  }
+
+  const otherVisualVariables = newRenderer.visualVariables.filter(
+    (vv) => vv.type !== "color" && vv.type !== "size"
+  );
+
+  const otherVariablesRegenerated = await regenerateVisualVariables(
+    params,
+    otherVisualVariables
+  );
+
+  newRenderer.visualVariables = [
+    ...generatedRenderer.visualVariables,
+    ...otherVariablesRegenerated,
+  ];
+
+  return newRenderer;
+}
+
 async function regenerateClassBreaksRenderer(params: RegenerateRendererParams) {
   const { layer, view } = params;
   const featureReduction =
@@ -368,8 +456,13 @@ async function regenerateClassBreaksRenderer(params: RegenerateRendererParams) {
   const styleType = authoringInfo?.type;
 
   if (styleType === "univariate-color-size") {
-    console.log("figure this out later");
-    return renderer;
+    const newRenderer = await regenerateUnivariateColorSizeRenderer({
+      layer,
+      view,
+      renderer,
+    });
+
+    return newRenderer;
   }
 
   if (renderer.classBreakInfos.length > 1) {
