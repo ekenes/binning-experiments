@@ -9,6 +9,9 @@ import {
 import {
   createRenderer as createRelationshipRenderer,
 } from "@arcgis/core/smartMapping/renderers/relationship";
+import {
+  createRenderer as createDotDensityRenderer,
+} from "@arcgis/core/smartMapping/renderers/dotDensity";
 
 import classBreaks from "@arcgis/core/smartMapping/statistics/classBreaks";
 
@@ -358,6 +361,30 @@ async function regenerateUniqueValueRenderer(params: RegenerateRendererParams) {
   return renderer;
 }
 
+async function regenerateDotDensityRenderer(params: RegenerateRendererParams) {
+  const { layer, view } = params;
+  const featureReduction =
+    layer.featureReduction as __esri.FeatureReductionBinning;
+
+  const renderer = (featureReduction.renderer as __esri.DotDensityRenderer).clone();
+
+  const response = await createDotDensityRenderer({
+    layer,
+    view,
+    attributes: renderer.attributes,
+    dotValueOptimizationEnabled: Boolean(renderer.referenceScale),
+    forBinning: true,
+  });
+
+  const newVisualVariables = await regenerateVisualVariables(params);
+  renderer.visualVariables = newVisualVariables;
+
+  renderer.referenceScale = response.renderer.referenceScale;
+  renderer.dotValue = response.renderer.dotValue;
+
+  return renderer;
+}
+
 async function regenerateSimpleRenderer(params: RegenerateRendererParams) {
   const { layer } = params;
   const featureReduction =
@@ -386,7 +413,7 @@ const rendererTypeMap = {
   simple: regenerateSimpleRenderer,
   "class-breaks": regenerateClassBreaksRenderer,
   "unique-value": regenerateUniqueValueRenderer,
-  "dot-density": null,
+  "dot-density": regenerateDotDensityRenderer,
   "pie-chart": null,
 };
 
