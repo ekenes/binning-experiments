@@ -385,6 +385,19 @@ async function regenerateDotDensityRenderer(params: RegenerateRendererParams) {
   return renderer;
 }
 
+async function regeneratePieChartRenderer(params: RegenerateRendererParams) {
+  const { layer } = params;
+  const featureReduction =
+    layer.featureReduction as __esri.FeatureReductionBinning;
+
+  const renderer = (featureReduction.renderer as __esri.PieChartRenderer).clone();
+
+  const newVisualVariables = await regenerateVisualVariables(params);
+  renderer.visualVariables = newVisualVariables as __esri.SizeVariable[];
+
+  return renderer;
+}
+
 async function regenerateSimpleRenderer(params: RegenerateRendererParams) {
   const { layer } = params;
   const featureReduction =
@@ -414,7 +427,7 @@ const rendererTypeMap = {
   "class-breaks": regenerateClassBreaksRenderer,
   "unique-value": regenerateUniqueValueRenderer,
   "dot-density": regenerateDotDensityRenderer,
-  "pie-chart": null,
+  "pie-chart": regeneratePieChartRenderer,
 };
 
 interface RegenerateRendererParams {
