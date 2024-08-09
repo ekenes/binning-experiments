@@ -1,13 +1,13 @@
 import {
   createContinuousRenderer as createContinuousColorRenderer,
-  createAgeRenderer as createAgeColorRenderer,
-  createClassBreaksRenderer as createColorClassBreaksRenderer,
+  createAgeRenderer as createAgeColorRenderer
 } from "@arcgis/core/smartMapping/renderers/color";
 import {
   createContinuousRenderer as createContinuousSizeRenderer,
-  createAgeRenderer as createAgeSizeRenderer,
-  createClassBreaksRenderer as createSizeClassBreaksRenderer,
+  createAgeRenderer as createAgeSizeRenderer
 } from "@arcgis/core/smartMapping/renderers/size";
+
+import classBreaks from "@arcgis/core/smartMapping/statistics/classBreaks";
 
 import { createVisualVariable as createOpacityVisualVariable } from "@arcgis/core/smartMapping/renderers/opacity";
 import Color from "@arcgis/core/Color";
@@ -139,7 +139,9 @@ interface RegenerateOpacityVariableParams {
   opacityValues: number[];
 }
 
-async function regenerateOpacityVariable(params: RegenerateOpacityVariableParams) {
+async function regenerateOpacityVariable(
+  params: RegenerateOpacityVariableParams
+) {
   const {
     layer,
     view,
@@ -148,7 +150,7 @@ async function regenerateOpacityVariable(params: RegenerateOpacityVariableParams
     valueExpression,
     valueExpressionTitle,
     opacityValues,
-    legendOptions
+    legendOptions,
   } = params;
 
   const { visualVariable } = await createOpacityVisualVariable({
@@ -168,6 +170,108 @@ async function regenerateOpacityVariable(params: RegenerateOpacityVariableParams
   return visualVariable;
 }
 
+async function regenerateVisualVariables(params: RegenerateRendererParams) {
+  const { layer, view } = params;
+  const featureReduction =
+    layer.featureReduction as __esri.FeatureReductionBinning;
+
+  const renderer = (
+    featureReduction.renderer as __esri.ClassBreaksRenderer
+  ).clone();
+
+  const { visualVariables, authoringInfo } = renderer;
+
+  if (!visualVariables || visualVariables.length === 0) {
+    return visualVariables;
+  }
+
+  const newVisualVariables = visualVariables.map(async (vv) => {
+    const {
+      field,
+      normalizationField,
+      valueExpression,
+      valueExpressionTitle,
+      legendOptions,
+    } = vv as __esri.ColorVariable;
+
+    if (vv.type === "color") {
+      const authoringInfoVV = authoringInfo.visualVariables.find(
+        (vv) => vv.type === "color"
+      );
+      const { theme, startTime, endTime, units } = authoringInfoVV!;
+
+      const colors = (vv as __esri.ColorVariable).stops.map(
+        (stop) => stop.color
+      );
+      const colorParams = {
+        field,
+        normalizationField,
+        valueExpression,
+        valueExpressionTitle,
+        legendOptions,
+        visualVariables,
+        authoringInfo,
+        layer,
+        view,
+        theme,
+        colors,
+        startTime,
+        endTime,
+        unit: units,
+      } as RegenerateColorVariableParams;
+      const colorVariable = await regenerateColorVariable(colorParams);
+      return colorVariable;
+    }
+    if (vv.type === "size") {
+      if (vv.valueExpression === "$view.scale") {
+        return Promise.resolve(vv);
+      }
+      const authoringInfoVV = authoringInfo.visualVariables.find(
+        (vv) => vv.type === "size"
+      );
+      const { theme, startTime, endTime, units } = authoringInfoVV!;
+
+      const sizeParams = {
+        field,
+        normalizationField,
+        valueExpression,
+        valueExpressionTitle,
+        legendOptions,
+        visualVariables,
+        authoringInfo,
+        layer,
+        view,
+        theme,
+        startTime,
+        endTime,
+        unit: units,
+      } as RegenerateSizeVariableParams;
+      const sizeVariable = await regenerateSizeVariable(sizeParams);
+      return sizeVariable;
+    }
+    if (vv.type === "opacity") {
+      const opacityParams = {
+        field,
+        normalizationField,
+        valueExpression,
+        valueExpressionTitle,
+        legendOptions,
+        opacityValues: (vv as __esri.OpacityVariable).stops.map(
+          (stop) => stop.opacity
+        ),
+        layer,
+        view,
+      } as RegenerateOpacityVariableParams;
+      const opacityVariable = await regenerateOpacityVariable(opacityParams);
+      return opacityVariable;
+    }
+    if (vv.type === "rotation") {
+      return await Promise.resolve(vv);
+    }
+  }) as Promise<__esri.VisualVariable>[];
+  return await Promise.all(newVisualVariables);
+}
+
 async function regenerateClassBreaksRenderer(params: RegenerateRendererParams) {
   const { layer, view } = params;
   const featureReduction =
@@ -181,90 +285,43 @@ async function regenerateClassBreaksRenderer(params: RegenerateRendererParams) {
     field,
     normalizationField,
     valueExpression,
-    valueExpressionTitle,
-    legendOptions,
-    visualVariables,
     authoringInfo,
   } = renderer;
 
   const styleType = authoringInfo?.type;
 
-  if (!styleType && visualVariables.length > 0) {
-    const newVisualVariables = visualVariables.map(async (vv) => {
-      if (vv.type === "color") {
-        const authoringInfoVV = authoringInfo.visualVariables.find(vv => vv.type === "color");
-        const { theme, startTime, endTime, units } = authoringInfoVV!;
-
-        const colors = (vv as __esri.ColorVariable).stops.map(
-          (stop) => stop.color
-        );
-        const colorParams = {
-          field,
-          normalizationField,
-          valueExpression,
-          valueExpressionTitle,
-          legendOptions,
-          visualVariables,
-          authoringInfo,
-          layer,
-          view,
-          theme,
-          colors,
-          startTime,
-          endTime,
-          unit: units,
-        } as RegenerateColorVariableParams;
-        const colorVariable = await regenerateColorVariable(colorParams);
-        return colorVariable;
-      }
-      if (vv.type === "size") {
-        if (vv.valueExpression === "$view.scale") {
-          return Promise.resolve(vv);
-        }
-        const authoringInfoVV = authoringInfo.visualVariables.find(vv => vv.type === "size");
-        const { theme, startTime, endTime, units } = authoringInfoVV!;
-
-        const sizeParams = {
-          field,
-          normalizationField,
-          valueExpression,
-          valueExpressionTitle,
-          legendOptions,
-          visualVariables,
-          authoringInfo,
-          layer,
-          view,
-          theme,
-          startTime,
-          endTime,
-          unit: units,
-        } as RegenerateSizeVariableParams;
-        const sizeVariable = await regenerateSizeVariable(sizeParams);
-        return sizeVariable;
-      }
-      if (vv.type === "opacity") {
-        const opacityParams = {
-          field,
-          normalizationField,
-          valueExpression,
-          valueExpressionTitle,
-          legendOptions,
-          opacityValues: (vv as __esri.OpacityVariable).stops.map(
-            (stop) => stop.opacity
-          ),
-          layer,
-          view,
-        } as RegenerateOpacityVariableParams;
-        const opacityVariable = await regenerateOpacityVariable(opacityParams);
-        return opacityVariable;
-      }
-      if (vv.type === "rotation") {
-        return await Promise.resolve(vv);
-      }
-    }) as Promise<__esri.VisualVariable>[];
-    renderer.visualVariables = await Promise.all(newVisualVariables);
+  if (!styleType) {
+    const newVisualVariables = await regenerateVisualVariables(params);
+    renderer.visualVariables = newVisualVariables;
     return renderer;
   }
+
+  if(styleType === "univariate-color-size") {
+    return renderer;
+  }
+
+  const { classificationMethod, standardDeviationInterval } = authoringInfo;
+  const numClasses = renderer.classBreakInfos.length;
+
+  const { classBreakInfos } = await classBreaks({
+    layer,
+    view,
+    field,
+    normalizationField,
+    valueExpression,
+    classificationMethod: classificationMethod as __esri.classBreaksClassBreaksParams["classificationMethod"],
+    standardDeviationInterval,
+    numClasses,
+    forBinning: true,
+  });
+
+  renderer.classBreakInfos.forEach((info, i) => {
+    info.minValue = classBreakInfos[i].minValue;
+    info.maxValue = classBreakInfos[i].maxValue;
+    info.label = classBreakInfos[i].label;
+  });
+
+  return renderer;
 }
 
 function processParams(params: RegenerateRendererParams) {
