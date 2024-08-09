@@ -191,7 +191,7 @@ function App() {
             heading="Controls"
             height-scale="l"
             data-panel-id="controls"
-            hidden
+            hidden={false}
           >
             <div className="controls">
               <div className="switch-content">
