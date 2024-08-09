@@ -1,11 +1,14 @@
 import {
   createContinuousRenderer as createContinuousColorRenderer,
-  createAgeRenderer as createAgeColorRenderer
+  createAgeRenderer as createAgeColorRenderer,
 } from "@arcgis/core/smartMapping/renderers/color";
 import {
   createContinuousRenderer as createContinuousSizeRenderer,
-  createAgeRenderer as createAgeSizeRenderer
+  createAgeRenderer as createAgeSizeRenderer,
 } from "@arcgis/core/smartMapping/renderers/size";
+import {
+  createRenderer as createRelationshipRenderer,
+} from "@arcgis/core/smartMapping/renderers/relationship";
 
 import classBreaks from "@arcgis/core/smartMapping/statistics/classBreaks";
 
@@ -281,12 +284,8 @@ async function regenerateClassBreaksRenderer(params: RegenerateRendererParams) {
     featureReduction.renderer as __esri.ClassBreaksRenderer
   ).clone();
 
-  const {
-    field,
-    normalizationField,
-    valueExpression,
-    authoringInfo,
-  } = renderer;
+  const { field, normalizationField, valueExpression, authoringInfo } =
+    renderer;
 
   const styleType = authoringInfo?.type;
 
@@ -296,7 +295,8 @@ async function regenerateClassBreaksRenderer(params: RegenerateRendererParams) {
     return renderer;
   }
 
-  if(styleType === "univariate-color-size") {
+  if (styleType === "univariate-color-size") {
+    console.log("figure this out later");
     return renderer;
   }
 
@@ -309,7 +309,8 @@ async function regenerateClassBreaksRenderer(params: RegenerateRendererParams) {
     field,
     normalizationField,
     valueExpression,
-    classificationMethod: classificationMethod as __esri.classBreaksClassBreaksParams["classificationMethod"],
+    classificationMethod:
+      classificationMethod as __esri.classBreaksClassBreaksParams["classificationMethod"],
     standardDeviationInterval,
     numClasses,
     forBinning: true,
@@ -321,6 +322,48 @@ async function regenerateClassBreaksRenderer(params: RegenerateRendererParams) {
     info.label = classBreakInfos[i].label;
   });
 
+  return renderer;
+}
+
+async function regenerateUniqueValueRenderer(params: RegenerateRendererParams) {
+  const { layer, view } = params;
+  const featureReduction =
+    layer.featureReduction as __esri.FeatureReductionBinning;
+
+  const renderer = (
+    featureReduction.renderer as __esri.UniqueValueRenderer
+  ).clone();
+
+  const { authoringInfo } = renderer;
+
+  const styleType = authoringInfo?.type;
+
+  if (styleType === "relationship"){
+    const { field1, field2, focus, numClasses } = authoringInfo;
+    const response = await createRelationshipRenderer({
+      layer,
+      view,
+      field1,
+      field2,
+      focus,
+      numClasses,
+      forBinning: true,
+    });
+    renderer.valueExpression = response.renderer.valueExpression;
+  }
+
+  const newVisualVariables = await regenerateVisualVariables(params);
+  renderer.visualVariables = newVisualVariables;
+
+  return renderer;
+}
+
+async function regenerateSimpleRenderer(params: RegenerateRendererParams) {
+  const { layer } = params;
+  const featureReduction =
+    layer.featureReduction as __esri.FeatureReductionBinning;
+
+  const renderer = featureReduction.renderer as __esri.Renderer;
   return renderer;
 }
 
@@ -339,19 +382,10 @@ function processParams(params: RegenerateRendererParams) {
   }
 }
 
-async function regenerateSimpleRenderer(params: RegenerateRendererParams) {
-  const { layer } = params;
-  const featureReduction =
-    layer.featureReduction as __esri.FeatureReductionBinning;
-
-  const renderer = featureReduction.renderer as __esri.Renderer;
-  return renderer;
-}
-
 const rendererTypeMap = {
   simple: regenerateSimpleRenderer,
   "class-breaks": regenerateClassBreaksRenderer,
-  "unique-value": null,
+  "unique-value": regenerateUniqueValueRenderer,
   "dot-density": null,
   "pie-chart": null,
 };
