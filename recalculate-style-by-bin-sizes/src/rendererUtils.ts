@@ -15,6 +15,7 @@ import SizeStop from "@arcgis/core/renderers/visualVariables/support/SizeStop";
 import classBreaks from "@arcgis/core/smartMapping/statistics/classBreaks";
 import summaryStatistics from "@arcgis/core/smartMapping/statistics/summaryStatistics";
 import referenceSize from "@arcgis/core/smartMapping/heuristics/referenceSize";
+import outline from "@arcgis/core/smartMapping/heuristics/outline";
 import { createVisualVariable as createOpacityVisualVariable } from "@arcgis/core/smartMapping/renderers/opacity";
 import Color from "@arcgis/core/Color";
 interface RegenerateColorVariableParams {
@@ -111,6 +112,8 @@ async function regenerateSizeVariable(params: RegenerateSizeVariableParams) {
       startTime: startTime || Date.now(),
       endTime: endTime || Date.now(),
       unit: unit!,
+      sizeOptimizationEnabled: true,
+      outlineOptimizationEnabled: false,
     });
     const visualVariable = visualVariables.filter(
       (vv) => vv.valueExpression !== "$view.scale"
@@ -127,6 +130,8 @@ async function regenerateSizeVariable(params: RegenerateSizeVariableParams) {
     valueExpressionTitle,
     theme: theme as __esri.sizeCreateContinuousRendererParams["theme"],
     forBinning: true,
+    sizeOptimizationEnabled: true,
+    outlineOptimizationEnabled: false,
   });
   const visualVariable = visualVariables.filter(
     (vv) => vv.valueExpression !== "$view.scale"
@@ -191,91 +196,109 @@ async function regenerateVisualVariables(params: RegenerateRendererParams) {
     return visualVariables;
   }
 
-  const newVisualVariables = visualVariables.map(async (vv) => {
-    const {
-      field,
-      normalizationField,
-      valueExpression,
-      valueExpressionTitle,
-      legendOptions,
-    } = vv as __esri.ColorVariable;
-
-    if (vv.type === "color") {
-      const authoringInfoVV = authoringInfo.visualVariables.find(
-        (vv) => vv.type === "color"
-      );
-      const { theme, startTime, endTime, units } = authoringInfoVV!;
-
-      const colors = (vv as __esri.ColorVariable).stops.map(
-        (stop) => stop.color
-      );
-      const colorParams = {
+  const newVisualVariables = visualVariables
+    .filter(
+      (vv) =>
+        !(
+          vv.type === "size" &&
+          vv.valueExpression === "$view.scale" &&
+          (vv as __esri.SizeVariable).target === "outline"
+        )
+    )
+    .map(async (vv) => {
+      const {
         field,
         normalizationField,
         valueExpression,
         valueExpressionTitle,
         legendOptions,
-        visualVariables,
-        authoringInfo,
-        layer,
-        view,
-        theme,
-        colors,
-        startTime,
-        endTime,
-        unit: units,
-      } as RegenerateColorVariableParams;
-      const colorVariable = await regenerateColorVariable(colorParams);
-      return colorVariable;
-    }
-    if (vv.type === "size") {
-      if (vv.valueExpression === "$view.scale") {
-        return Promise.resolve(vv);
+      } = vv as __esri.ColorVariable;
+
+      if (vv.type === "color") {
+        const authoringInfoVV = authoringInfo.visualVariables.find(
+          (vv) => vv.type === "color"
+        );
+        const { theme, startTime, endTime, units } = authoringInfoVV!;
+
+        const colors = (vv as __esri.ColorVariable).stops.map(
+          (stop) => stop.color
+        );
+        const colorParams = {
+          field,
+          normalizationField,
+          valueExpression,
+          valueExpressionTitle,
+          legendOptions,
+          visualVariables,
+          authoringInfo,
+          layer,
+          view,
+          theme,
+          colors,
+          startTime,
+          endTime,
+          unit: units,
+        } as RegenerateColorVariableParams;
+        const colorVariable = await regenerateColorVariable(colorParams);
+        return colorVariable;
       }
-      const authoringInfoVV = authoringInfo.visualVariables.find(
-        (vv) => vv.type === "size"
-      );
-      const { theme, startTime, endTime, units } = authoringInfoVV!;
+      if (vv.type === "size") {
+        const authoringInfoVV = authoringInfo.visualVariables.find(
+          (vv) => vv.type === "size"
+        );
+        const { theme, startTime, endTime, units } = authoringInfoVV!;
 
-      const sizeParams = {
-        field,
-        normalizationField,
-        valueExpression,
-        valueExpressionTitle,
-        legendOptions,
-        visualVariables,
-        authoringInfo,
-        layer,
-        view,
-        theme,
-        startTime,
-        endTime,
-        unit: units,
-      } as RegenerateSizeVariableParams;
-      const sizeVariable = await regenerateSizeVariable(sizeParams);
-      return sizeVariable;
-    }
-    if (vv.type === "opacity") {
-      const opacityParams = {
-        field,
-        normalizationField,
-        valueExpression,
-        valueExpressionTitle,
-        legendOptions,
-        opacityValues: (vv as __esri.OpacityVariable).stops.map(
-          (stop) => stop.opacity
-        ),
-        layer,
-        view,
-      } as RegenerateOpacityVariableParams;
-      const opacityVariable = await regenerateOpacityVariable(opacityParams);
-      return opacityVariable;
-    }
-    if (vv.type === "rotation") {
-      return await Promise.resolve(vv);
-    }
-  }) as Promise<__esri.VisualVariable>[];
-  return await Promise.all(newVisualVariables);
+        const sizeParams = {
+          field,
+          normalizationField,
+          valueExpression,
+          valueExpressionTitle,
+          legendOptions,
+          visualVariables,
+          authoringInfo,
+          layer,
+          view,
+          theme,
+          startTime,
+          endTime,
+          unit: units,
+        } as RegenerateSizeVariableParams;
+        const sizeVariable = await regenerateSizeVariable(sizeParams);
+        return sizeVariable;
+      }
+      if (vv.type === "opacity") {
+        const opacityParams = {
+          field,
+          normalizationField,
+          valueExpression,
+          valueExpressionTitle,
+          legendOptions,
+          opacityValues: (vv as __esri.OpacityVariable).stops.map(
+            (stop) => stop.opacity
+          ),
+          layer,
+          view,
+        } as RegenerateOpacityVariableParams;
+        const opacityVariable = await regenerateOpacityVariable(opacityParams);
+        return opacityVariable;
+      }
+      if (vv.type === "rotation") {
+        return await Promise.resolve(vv);
+      }
+    }) as Promise<__esri.VisualVariable>[];
+
+  const {
+    visualVariables: [outlineVariable],
+  } = await outline({
+    layer,
+    view,
+    forBinning: true,
+  });
+
+  return await Promise.all([
+    ...newVisualVariables,
+    outlineVariable as __esri.SizeVariable,
+  ]);
 }
 
 async function regenerateReferenceSizeRenderer(
