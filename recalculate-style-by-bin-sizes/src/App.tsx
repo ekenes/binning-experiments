@@ -132,6 +132,8 @@ function App() {
 
     if (!layer && l.visible) {
       setLayer(l as __esri.FeatureLayer);
+      const featureReduction = l.featureReduction as __esri.FeatureReductionBinning;
+      setFixedBinLevel(featureReduction.fixedBinLevel);
     }
 
     when(
