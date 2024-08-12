@@ -45,7 +45,7 @@ function App() {
   const [webmapId, setWebmapId] = useState<string | undefined>(defaultItemId);
   const [fixedBinLevel, setFixedBinLevel] = useState<number>(5);
   const [layer, setLayer] = useState<__esri.FeatureLayer>(null!);
-  const [regenerateEnabled, setRegenerateEnabled] = useState<boolean | undefined>(undefined);
+  const [regenerateEnabled, setRegenerateEnabled] = useState<boolean>(false);
 
   const initialize = async () => {
     const mapElement = mapRef.current;
@@ -68,7 +68,7 @@ function App() {
 
     const handleActionBarClick = (event: Event) => {
       const { target } = event;
-      if ((target as HTMLCalciteActionElement )!.tagName !== "CALCITE-ACTION") {
+      if ((target as HTMLCalciteActionElement)!.tagName !== "CALCITE-ACTION") {
         return;
       }
 
@@ -81,7 +81,8 @@ function App() {
         ) as HTMLCalcitePanelElement)!.hidden = true;
       }
 
-      const nextWidget: string | null = (target as HTMLCalciteActionElement ).dataset.actionId!;
+      const nextWidget: string | null = (target as HTMLCalciteActionElement)
+        .dataset.actionId!;
       if (nextWidget !== activeWidget) {
         (document.querySelector(
           `[data-action-id=${nextWidget}]`
@@ -118,6 +119,8 @@ function App() {
   const listItemCreatedFunction: __esri.ListItemCreatedHandler = (event) => {
     const { item } = event;
     const l = item.layer;
+
+    item.open = l.type === "group";
 
     if (
       l.type !== "feature" ||
@@ -198,9 +201,9 @@ function App() {
                 <CalciteLabel layout="inline" alignment="start">
                   Regenerate renderer
                   <CalciteSwitch
-                    checked={regenerateEnabled}
+                    checked={regenerateEnabled ? true : undefined}
                     onCalciteSwitchChange={(e) => {
-                      setRegenerateEnabled(e.target.checked ? true : undefined);
+                      setRegenerateEnabled(e.target.checked);
                     }}
                   />
                 </CalciteLabel>
