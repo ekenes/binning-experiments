@@ -2,7 +2,7 @@ import { setAssetPath } from "@esri/calcite-components/dist/components";
 // CDN hosted assets
 setAssetPath("https://js.arcgis.com/calcite-components/2.11.1/assets");
 
-import React, { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import "./App.css";
 import "@arcgis/map-components/dist/components/arcgis-map";
 import "@arcgis/map-components/dist/components/arcgis-layer-list";
@@ -45,7 +45,7 @@ function App() {
   const [webmapId, setWebmapId] = useState<string | undefined>(defaultItemId);
   const [fixedBinLevel, setFixedBinLevel] = useState<number>(5);
   const [layer, setLayer] = useState<__esri.FeatureLayer>(null!);
-  const [regenerateEnabled, setRegenerateEnabled] = useState<boolean>(false);
+  const [regenerateEnabled, setRegenerateEnabled] = useState<boolean | undefined>(undefined);
 
   const initialize = async () => {
     const mapElement = mapRef.current;
@@ -64,11 +64,11 @@ function App() {
     const { title } = webmap.portalItem;
     document.querySelector("#header-title")!.textContent = title;
 
-    let activeWidget;
+    let activeWidget: string | null = null;
 
-    const handleActionBarClick = (event) => {
+    const handleActionBarClick = (event: Event) => {
       const { target } = event;
-      if (target.tagName !== "CALCITE-ACTION") {
+      if ((target as HTMLCalciteActionElement )!.tagName !== "CALCITE-ACTION") {
         return;
       }
 
@@ -81,7 +81,7 @@ function App() {
         ) as HTMLCalcitePanelElement)!.hidden = true;
       }
 
-      const nextWidget = target.dataset.actionId;
+      const nextWidget: string | null = (target as HTMLCalciteActionElement ).dataset.actionId!;
       if (nextWidget !== activeWidget) {
         (document.querySelector(
           `[data-action-id=${nextWidget}]`
@@ -115,7 +115,7 @@ function App() {
     ).hidden = true;
   };
 
-  const listItemCreatedFunction = (event) => {
+  const listItemCreatedFunction: __esri.ListItemCreatedHandler = (event) => {
     const { item } = event;
     const l = item.layer;
 
@@ -127,7 +127,7 @@ function App() {
       return;
     }
 
-    if(!layer && l.visible) {
+    if (!layer && l.visible) {
       setLayer(l as __esri.FeatureLayer);
     }
 
@@ -200,7 +200,7 @@ function App() {
                   <CalciteSwitch
                     checked={regenerateEnabled}
                     onCalciteSwitchChange={(e) => {
-                      setRegenerateEnabled(e.target.checked);
+                      setRegenerateEnabled(e.target.checked ? true : undefined);
                     }}
                   />
                 </CalciteLabel>

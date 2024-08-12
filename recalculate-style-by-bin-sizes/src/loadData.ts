@@ -7,11 +7,11 @@ export interface UrlParams {
 export const defaultItemId = "08c2bea3b9f444918157b722296682f0";
 
 // function to set an id as a url param
-function setUrlParams(id: string, layerId: string | number, portal: string) {
+function setUrlParams(id: string, portal: string) {
   window.history.pushState(
     "",
     "",
-    `${window.location.pathname}?id=${id}&layerId=${layerId}&portal=${portal}`
+    `${window.location.pathname}?id=${id}&portal=${portal}`
   );
 }
 
@@ -20,7 +20,7 @@ export function getUrlParams(): UrlParams {
   const result: { id?: string, portal?: string, layerId?: string} = {};
 
   queryParams.split("&").forEach(function (part) {
-    const item = part.split("=");
+    const item: Array<"id" | "portal"> = part.split("=") as Array<"id" | "portal">;
     result[item[0]] = decodeURIComponent(item[1]);
   });
 
@@ -41,7 +41,7 @@ export function getUrlParams(): UrlParams {
     portal = "https://www.arcgis.com/";
   }
 
-  setUrlParams(id, layerIndex, portal);
+  setUrlParams(id, portal);
 
   return { layerIndex, id, portal };
 }

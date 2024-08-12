@@ -620,6 +620,8 @@ const rendererTypeMap = {
   "pie-chart": regeneratePieChartRenderer,
 };
 
+type RendererTypes = keyof typeof rendererTypeMap;
+
 interface RegenerateRendererParams {
   layer: __esri.FeatureLayer;
   view: __esri.MapView;
@@ -636,7 +638,7 @@ export async function regenerateRenderer(params: RegenerateRendererParams) {
   const renderer = featureReduction.renderer as __esri.Renderer;
 
   if (renderer.type in rendererTypeMap) {
-    const newRenderer = await rendererTypeMap[renderer.type](params);
+    const newRenderer = await rendererTypeMap[renderer.type as RendererTypes](params);
     featureReduction.renderer = newRenderer;
     layer.featureReduction = featureReduction;
     return;
