@@ -41,7 +41,6 @@ import { when } from "@arcgis/core/core/reactiveUtils";
 
 function App() {
   const mapRef = useRef<HTMLArcgisMapElement | null>(null);
-  const layerListRef = useRef<HTMLArcgisLayerListElement | null>(null);
   const [webmapId, setWebmapId] = useState<string | undefined>(defaultItemId);
   const [fixedBinLevel, setFixedBinLevel] = useState<number>(5);
   const [layer, setLayer] = useState<__esri.FeatureLayer>(null!);
@@ -188,7 +187,6 @@ function App() {
           >
             <ArcgisLayerList
               referenceElement="#map"
-              ref={layerListRef}
               listItemCreatedFunction={listItemCreatedFunction}
             ></ArcgisLayerList>
           </CalcitePanel>
