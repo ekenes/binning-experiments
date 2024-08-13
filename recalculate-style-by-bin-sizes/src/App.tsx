@@ -41,6 +41,7 @@ import { when } from "@arcgis/core/core/reactiveUtils";
 
 function App() {
   const mapRef = useRef<HTMLArcgisMapElement | null>(null);
+  const layerListRef = useRef<HTMLArcgisLayerListElement | null>(null);
   const [webmapId, setWebmapId] = useState<string | undefined>(defaultItemId);
   const [fixedBinLevel, setFixedBinLevel] = useState<number>(5);
   const [layer, setLayer] = useState<__esri.FeatureLayer>(null!);
@@ -131,7 +132,8 @@ function App() {
 
     if (!layer && l.visible) {
       setLayer(l as __esri.FeatureLayer);
-      const featureReduction = l.featureReduction as __esri.FeatureReductionBinning;
+      const featureReduction =
+        l.featureReduction as __esri.FeatureReductionBinning;
       setFixedBinLevel(featureReduction.fixedBinLevel);
     }
 
@@ -187,6 +189,7 @@ function App() {
           >
             <ArcgisLayerList
               referenceElement="#map"
+              ref={layerListRef}
               listItemCreatedFunction={listItemCreatedFunction}
             ></ArcgisLayerList>
           </CalcitePanel>
@@ -227,17 +230,15 @@ function App() {
             </div>
           </CalcitePanel>
         </CalciteShellPanel>
-        <div className="map-only" id="map-container">
-          <ArcgisMap
-            id="map"
-            class="map-only"
-            ref={mapRef}
-            itemId={webmapId}
-            onArcgisViewReadyChange={initialize}
-          >
-            <ArcgisLegend position="bottom-right" />
-          </ArcgisMap>
-        </div>
+        <ArcgisMap
+          id="map"
+          class="map-only"
+          ref={mapRef}
+          itemId={webmapId}
+          onArcgisViewReadyChange={initialize}
+        >
+          <ArcgisLegend position="bottom-right" />
+        </ArcgisMap>
       </CalciteShell>
     </>
   );
