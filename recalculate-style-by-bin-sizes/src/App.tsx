@@ -61,7 +61,8 @@ function App() {
     };
     const webmap = view?.map as __esri.WebMap;
 
-    const { title } = webmap.portalItem;
+    const { title, extent } = webmap.portalItem;
+    mapElement!.extent = extent;
     document.querySelector("#header-title")!.textContent = title;
 
     let activeWidget: string | null = null;
@@ -130,7 +131,7 @@ function App() {
       return;
     }
 
-    if (!layer && l.visible) {
+    if (l.visible) {
       setLayer(l as __esri.FeatureLayer);
       const featureReduction =
         l.featureReduction as __esri.FeatureReductionBinning;
