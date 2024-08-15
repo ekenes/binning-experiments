@@ -7,6 +7,7 @@ import {
   createAgeRenderer as createAgeSizeRenderer,
   updateRendererWithReferenceSize,
 } from "@arcgis/core/smartMapping/renderers/size";
+import { createRenderer as createHeatmapRenderer } from "@arcgis/core/smartMapping/renderers/heatmap";
 import { createRenderer as createRelationshipRenderer } from "@arcgis/core/smartMapping/renderers/relationship";
 import { createRenderer as createDotDensityRenderer } from "@arcgis/core/smartMapping/renderers/dotDensity";
 import { createContinuousRenderer as createUnivariateRenderer } from "@arcgis/core/smartMapping/renderers/univariateColorSize";
@@ -588,6 +589,25 @@ async function regeneratePieChartRenderer(params: RegenerateRendererParams) {
   return renderer;
 }
 
+async function regenerateHeatmapRenderer(params: RegenerateRendererParams) {
+  const { layer, view } = params;
+  const oldRenderer = layer.renderer as __esri.HeatmapRenderer;
+  const { field, authoringInfo: { fadeRatio } } = oldRenderer;
+
+  const { renderer } = await createHeatmapRenderer({
+    layer,
+    view,
+    field,
+    fadeRatio,
+  });
+
+  renderer.colorStops.forEach((stop, i) => {
+    stop.color = oldRenderer.colorStops[i].color;
+  });
+
+  return renderer;
+}
+
 async function regenerateSimpleRenderer(params: RegenerateRendererParams) {
   const { layer } = params;
   const featureReduction =
@@ -618,6 +638,7 @@ const rendererTypeMap = {
   "unique-value": regenerateUniqueValueRenderer,
   "dot-density": regenerateDotDensityRenderer,
   "pie-chart": regeneratePieChartRenderer,
+  heatmap: regenerateHeatmapRenderer,
 };
 
 type RendererTypes = keyof typeof rendererTypeMap;
@@ -625,6 +646,8 @@ type RendererTypes = keyof typeof rendererTypeMap;
 interface RegenerateRendererParams {
   layer: __esri.FeatureLayer;
   view: __esri.MapView;
+  forBinning?: boolean;
+  filter?: __esri.FeatureFilter;
 }
 
 export async function regenerateRenderer(params: RegenerateRendererParams) {
