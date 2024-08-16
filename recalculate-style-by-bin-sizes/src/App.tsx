@@ -147,19 +147,34 @@ function App() {
   };
 
   useEffect(() => {
-    if (!layer || !fixedBinLevel) {
-      return;
-    }
+    (async () => {
+      if (!layer || !fixedBinLevel) {
+        return;
+      }
 
-    const featureReduction = (
-      layer.featureReduction as __esri.FeatureReductionBinning
-    ).clone();
-    featureReduction.fixedBinLevel = fixedBinLevel;
-    layer.featureReduction = featureReduction;
+      const forBinning = layer.featureReduction?.type === "binning";
+      const featureReduction = (
+        layer.featureReduction as __esri.FeatureReductionBinning
+      ).clone();
 
-    if (regenerateEnabled) {
-      regenerateRenderer({ layer, view: mapRef.current!.view });
-    }
+      featureReduction.fixedBinLevel = fixedBinLevel;
+      layer.featureReduction = featureReduction;
+
+      if (regenerateEnabled) {
+        const renderer = await regenerateRenderer({
+          layer,
+          view: mapRef.current!.view,
+          forBinning,
+        });
+
+        if (forBinning) {
+          featureReduction.renderer = renderer!;
+          layer.featureReduction = featureReduction;
+          return;
+        }
+        layer.renderer = renderer!;
+      }
+    })();
   }, [fixedBinLevel, layer, regenerateEnabled]);
 
   return (

@@ -32,6 +32,7 @@ interface RegenerateColorVariableParams {
   unit?: __esri.colorCreateAgeRendererParams["unit"];
   theme?: string;
   colors: Color[];
+  forBinning?: boolean;
 }
 
 async function regenerateColorVariable(params: RegenerateColorVariableParams) {
@@ -47,6 +48,7 @@ async function regenerateColorVariable(params: RegenerateColorVariableParams) {
     startTime,
     endTime,
     unit,
+    forBinning,
   } = params;
 
   if (startTime || endTime) {
@@ -72,7 +74,7 @@ async function regenerateColorVariable(params: RegenerateColorVariableParams) {
     valueExpression,
     valueExpressionTitle,
     theme: theme as __esri.colorCreateContinuousRendererParams["theme"],
-    forBinning: true,
+    forBinning,
   });
   visualVariable.stops.forEach((stop, i) => {
     stop.color = colors[i];
@@ -90,6 +92,7 @@ interface RegenerateSizeVariableParams {
   endTime?: __esri.colorCreateAgeRendererParams["endTime"];
   unit?: __esri.colorCreateAgeRendererParams["unit"];
   theme?: string;
+  forBinning?: boolean;
 }
 
 async function regenerateSizeVariable(params: RegenerateSizeVariableParams) {
@@ -104,6 +107,7 @@ async function regenerateSizeVariable(params: RegenerateSizeVariableParams) {
     startTime,
     endTime,
     unit,
+    forBinning,
   } = params;
 
   if (startTime || endTime) {
@@ -131,7 +135,7 @@ async function regenerateSizeVariable(params: RegenerateSizeVariableParams) {
     valueExpression,
     valueExpressionTitle,
     theme: theme as __esri.sizeCreateContinuousRendererParams["theme"],
-    forBinning: true,
+    forBinning,
     sizeOptimizationEnabled: true,
     outlineOptimizationEnabled: false,
   });
@@ -150,6 +154,7 @@ interface RegenerateOpacityVariableParams {
   valueExpressionTitle?: string;
   legendOptions?: __esri.opacityCreateVisualVariableParams["legendOptions"];
   opacityValues: number[];
+  forBinning?: boolean;
 }
 
 async function regenerateOpacityVariable(
@@ -164,6 +169,7 @@ async function regenerateOpacityVariable(
     valueExpressionTitle,
     opacityValues,
     legendOptions,
+    forBinning,
   } = params;
 
   const { visualVariable } = await createOpacityVisualVariable({
@@ -174,7 +180,7 @@ async function regenerateOpacityVariable(
     valueExpression,
     valueExpressionTitle,
     legendOptions,
-    forBinning: true,
+    forBinning,
   });
   visualVariable.stops.forEach((stop, i) => {
     stop.opacity = opacityValues[i];
@@ -191,13 +197,13 @@ async function regenerateVisualVariables(
     return vvSubset;
   }
 
-  const { layer, view } = params;
+  const { layer, view, forBinning } = params;
   const featureReduction =
     layer.featureReduction as __esri.FeatureReductionBinning;
 
-  const renderer = (
-    featureReduction.renderer as __esri.ClassBreaksRenderer
-  ).clone();
+  const renderer = forBinning
+    ? (featureReduction.renderer as __esri.ClassBreaksRenderer).clone()
+    : (layer.renderer as __esri.ClassBreaksRenderer).clone();
 
   const { visualVariables, authoringInfo } = renderer;
 
@@ -249,6 +255,7 @@ async function regenerateVisualVariables(
           startTime,
           endTime,
           unit: units,
+          forBinning,
         } as RegenerateColorVariableParams;
         const colorVariable = await regenerateColorVariable(colorParams);
         return colorVariable;
@@ -273,6 +280,7 @@ async function regenerateVisualVariables(
           startTime,
           endTime,
           unit: units,
+          forBinning,
         } as RegenerateSizeVariableParams;
         const sizeVariable = await regenerateSizeVariable(sizeParams);
         return sizeVariable;
@@ -289,6 +297,7 @@ async function regenerateVisualVariables(
           ),
           layer,
           view,
+          forBinning,
         } as RegenerateOpacityVariableParams;
         const opacityVariable = await regenerateOpacityVariable(opacityParams);
         return opacityVariable;
@@ -303,7 +312,7 @@ async function regenerateVisualVariables(
   } = await outline({
     layer,
     view,
-    forBinning: true,
+    forBinning,
   });
 
   return await Promise.all([
@@ -315,14 +324,21 @@ async function regenerateVisualVariables(
 async function regenerateReferenceSizeRenderer(
   params: RegenerateRendererParams
 ) {
-  const { layer, view } = params;
+  const { layer, view, forBinning } = params;
   const featureReduction =
     layer.featureReduction as __esri.FeatureReductionBinning;
 
-  const renderer = (
-    (featureReduction.renderer as __esri.ClassBreaksRenderer) ||
-    __esri.UniqueValueRenderer
-  ).clone();
+  const renderer = forBinning
+    ? (
+        featureReduction.renderer as
+          | __esri.ClassBreaksRenderer
+          | __esri.UniqueValueRenderer
+      ).clone()
+    : (
+        layer.renderer as
+          | __esri.ClassBreaksRenderer
+          | __esri.UniqueValueRenderer
+      ).clone();
 
   const { authoringInfo } = renderer;
 
@@ -338,14 +354,14 @@ async function regenerateReferenceSizeRenderer(
       view,
       field,
       normalizationField,
-      forBinning: true,
+      forBinning,
     });
     const maxValue = avg + 2 * stddev;
 
     const { size } = await referenceSize({
       layer,
       view,
-      forBinning: true,
+      forBinning,
     });
 
     const sizeStops = [
@@ -357,7 +373,7 @@ async function regenerateReferenceSizeRenderer(
       layer,
       view,
       sizeStops,
-      forBinning: true,
+      forBinning,
     });
     return renderer;
   }
@@ -368,12 +384,13 @@ interface RegenerateUnivariateRendererParams {
   layer: __esri.FeatureLayer;
   view: __esri.MapView;
   renderer: __esri.ClassBreaksRenderer;
+  forBinning?: boolean;
 }
 
 async function regenerateUnivariateColorSizeRenderer(
   params: RegenerateUnivariateRendererParams
 ) {
-  const { layer, renderer, view } = params;
+  const { layer, renderer, view, forBinning } = params;
   const {
     field,
     normalizationField,
@@ -395,7 +412,7 @@ async function regenerateUnivariateColorSizeRenderer(
     valueExpression,
     valueExpressionTitle,
     theme: univariateTheme,
-    forBinning: true,
+    forBinning,
     colorOptions: {
       isContinuous,
     },
@@ -443,13 +460,13 @@ async function regenerateUnivariateColorSizeRenderer(
 }
 
 async function regenerateClassBreaksRenderer(params: RegenerateRendererParams) {
-  const { layer, view } = params;
+  const { layer, view, forBinning } = params;
   const featureReduction =
     layer.featureReduction as __esri.FeatureReductionBinning;
 
-  let renderer = (
-    featureReduction.renderer as __esri.ClassBreaksRenderer
-  ).clone();
+  let renderer = forBinning
+    ? (featureReduction.renderer as __esri.ClassBreaksRenderer).clone()
+    : (layer.renderer as __esri.ClassBreaksRenderer).clone();
 
   const { field, normalizationField, valueExpression, authoringInfo } =
     renderer;
@@ -461,6 +478,7 @@ async function regenerateClassBreaksRenderer(params: RegenerateRendererParams) {
       layer,
       view,
       renderer,
+      forBinning,
     });
 
     return newRenderer;
@@ -480,7 +498,7 @@ async function regenerateClassBreaksRenderer(params: RegenerateRendererParams) {
         classificationMethod as __esri.classBreaksClassBreaksParams["classificationMethod"],
       standardDeviationInterval,
       numClasses,
-      forBinning: true,
+      forBinning,
     });
 
     renderer.classBreakInfos.forEach((info, i) => {
@@ -506,13 +524,13 @@ async function regenerateClassBreaksRenderer(params: RegenerateRendererParams) {
 }
 
 async function regenerateUniqueValueRenderer(params: RegenerateRendererParams) {
-  const { layer, view } = params;
+  const { layer, view, forBinning } = params;
   const featureReduction =
     layer.featureReduction as __esri.FeatureReductionBinning;
 
-  let renderer = (
-    featureReduction.renderer as __esri.UniqueValueRenderer
-  ).clone();
+  let renderer = forBinning
+    ? (featureReduction.renderer as __esri.UniqueValueRenderer).clone()
+    : (layer.renderer as __esri.UniqueValueRenderer).clone();
 
   const { authoringInfo } = renderer;
 
@@ -527,7 +545,7 @@ async function regenerateUniqueValueRenderer(params: RegenerateRendererParams) {
       field2,
       focus,
       numClasses,
-      forBinning: true,
+      forBinning,
     });
     renderer.valueExpression = response.renderer.valueExpression;
   }
@@ -549,20 +567,20 @@ async function regenerateUniqueValueRenderer(params: RegenerateRendererParams) {
 }
 
 async function regenerateDotDensityRenderer(params: RegenerateRendererParams) {
-  const { layer, view } = params;
+  const { layer, view, forBinning } = params;
   const featureReduction =
     layer.featureReduction as __esri.FeatureReductionBinning;
 
-  const renderer = (
-    featureReduction.renderer as __esri.DotDensityRenderer
-  ).clone();
+  const renderer = forBinning
+    ? (featureReduction.renderer as __esri.DotDensityRenderer).clone()
+    : (layer.renderer as __esri.DotDensityRenderer).clone();
 
   const response = await createDotDensityRenderer({
     layer,
     view,
     attributes: renderer.attributes,
     dotValueOptimizationEnabled: Boolean(renderer.referenceScale),
-    forBinning: true,
+    forBinning,
   });
 
   const newVisualVariables = await regenerateVisualVariables(params);
@@ -575,13 +593,13 @@ async function regenerateDotDensityRenderer(params: RegenerateRendererParams) {
 }
 
 async function regeneratePieChartRenderer(params: RegenerateRendererParams) {
-  const { layer } = params;
+  const { layer, forBinning } = params;
   const featureReduction =
     layer.featureReduction as __esri.FeatureReductionBinning;
 
-  const renderer = (
-    featureReduction.renderer as __esri.PieChartRenderer
-  ).clone();
+  const renderer = forBinning
+    ? (featureReduction.renderer as __esri.PieChartRenderer).clone()
+    : (layer.renderer as __esri.PieChartRenderer).clone();
 
   const newVisualVariables = await regenerateVisualVariables(params);
   renderer.visualVariables = newVisualVariables as __esri.SizeVariable[];
@@ -592,7 +610,10 @@ async function regeneratePieChartRenderer(params: RegenerateRendererParams) {
 async function regenerateHeatmapRenderer(params: RegenerateRendererParams) {
   const { layer, view } = params;
   const oldRenderer = layer.renderer as __esri.HeatmapRenderer;
-  const { field, authoringInfo: { fadeRatio } } = oldRenderer;
+  const {
+    field,
+    authoringInfo: { fadeRatio },
+  } = oldRenderer;
 
   const { renderer } = await createHeatmapRenderer({
     layer,
@@ -609,16 +630,16 @@ async function regenerateHeatmapRenderer(params: RegenerateRendererParams) {
 }
 
 async function regenerateSimpleRenderer(params: RegenerateRendererParams) {
-  const { layer } = params;
+  const { layer, forBinning } = params;
   const featureReduction =
     layer.featureReduction as __esri.FeatureReductionBinning;
 
-  const renderer = featureReduction.renderer as __esri.Renderer;
+  const renderer = forBinning ? featureReduction.renderer : layer.renderer;
   return renderer;
 }
 
 function processParams(params: RegenerateRendererParams) {
-  const { layer, view } = params;
+  const { layer, view, forBinning } = params;
 
   if (!layer || !view) {
     throw new Error("Layer and view are required");
@@ -627,8 +648,8 @@ function processParams(params: RegenerateRendererParams) {
   const featureReduction =
     layer.featureReduction as __esri.FeatureReductionBinning;
 
-  if (!featureReduction) {
-    throw new Error("Feature reduction is required");
+  if (forBinning && !featureReduction) {
+    throw new Error("Feature reduction is required when forBinning is true");
   }
 }
 
@@ -653,18 +674,16 @@ interface RegenerateRendererParams {
 export async function regenerateRenderer(params: RegenerateRendererParams) {
   processParams(params);
 
-  const { layer } = params;
-  const featureReduction = (
-    layer.featureReduction as __esri.FeatureReductionBinning
-  ).clone();
+  const { layer, forBinning } = params;
+  const featureReduction =
+    layer.featureReduction as __esri.FeatureReductionBinning;
 
-  const renderer = featureReduction.renderer as __esri.Renderer;
+  const { type: rendererType } = forBinning
+    ? (featureReduction.renderer as __esri.Renderer)
+    : layer.renderer;
 
-  if (renderer.type in rendererTypeMap) {
-    const newRenderer = await rendererTypeMap[renderer.type as RendererTypes](params);
-    featureReduction.renderer = newRenderer;
-    layer.featureReduction = featureReduction;
-    return;
+  if (rendererType in rendererTypeMap) {
+    return await rendererTypeMap[rendererType as RendererTypes](params);
   }
   console.log("Renderer type not supported");
 }
